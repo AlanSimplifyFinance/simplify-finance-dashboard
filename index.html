@@ -1,1 +1,426 @@
-<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Simplify Finance Dashboard</title><style>body{background:#040e1e;color:#7a9ab8;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:1.5rem;margin:0;}</style></head><body>Dashboard loading — run generate_dashboard.py to populate.</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simplify Finance Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #040e1e;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Main grid ────────────────────────────────────────────────────────────── */
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 3fr 2fr;
+  grid-template-areas:
+    "table gauge right"
+    "ytd   loans loans";
+  gap: 10px;
+  padding: 10px 10px 0 10px;
+  min-height: 0;
+}
+
+/* ── Shared panel style ───────────────────────────────────────────────────── */
+.panel {
+  background: #071628;
+  border-radius: 7px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.panel-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #7a9ab8;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  letter-spacing: 0.1px;
+}
+
+/* ── Monthly table ────────────────────────────────────────────────────────── */
+.panel-table { grid-area: table; }
+
+table.monthly {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+  flex: 1;
+}
+table.monthly th {
+  color: #4a6a8a;
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 0 7px 0;
+  border-bottom: 1px solid #0c1e34;
+  text-align: right;
+}
+table.monthly th:first-child { text-align: left; }
+table.monthly td {
+  padding: 4px 0;
+  border-bottom: 1px solid #071a2e;
+  color: #cdddef;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+table.monthly td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: #fff;
+}
+table.monthly tr.zero td { color: #1e3a56; }
+
+/* ── Gauge ────────────────────────────────────────────────────────────────── */
+.panel-gauge {
+  grid-area: gauge;
+  align-items: stretch;
+}
+.gauge-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+#gaugeCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Right column (stacked) ───────────────────────────────────────────────── */
+.panel-right {
+  grid-area: right;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel-right .panel { flex: 1; }
+
+/* ── KPI display ──────────────────────────────────────────────────────────── */
+.kpi-num {
+  font-size: clamp(2.6rem, 4.5vw, 5rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+}
+.kpi-sub {
+  font-size: 0.8rem;
+  color: #7a9ab8;
+  margin-bottom: 10px;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+.prog-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #3a6a8a;
+  margin-bottom: 5px;
+}
+.prog-meta .pct { color: #00c8a8; font-weight: 700; }
+.prog-track {
+  height: 9px;
+  background: #0b2040;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #009f88, #00d4b0);
+  border-radius: 5px;
+}
+
+/* ── Bottom panels ────────────────────────────────────────────────────────── */
+.panel-ytd   { grid-area: ytd; }
+.panel-loans { grid-area: loans; }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+footer {
+  height: 42px;
+  background: #030c1a;
+  border-top: 1px solid #0c1e34;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo {
+  width: 28px; height: 28px;
+  background: #0055b3;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;
+}
+.brand-name  { font-size: 0.85rem; font-weight: 500; color: #7a9ab8; }
+.updated     { font-size: 0.7rem;  color: #2a4a6a; }
+#clock       { font-size: 1rem; font-weight: 600; color: #7a9ab8; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<script>const GIST_URL = 'https://gist.githubusercontent.com/AlanSimplifyFinance/de7856c8d314bfe7da8dc0800294a947/raw/data.json';</script>
+
+<div id="loading" style="position:fixed;inset:0;background:#040e1e;display:flex;align-items:center;justify-content:center;z-index:999;font-size:1.2rem;color:#7a9ab8;">Loading dashboard…</div>
+
+<div class="grid">
+
+  <!-- Monthly table -->
+  <div class="panel panel-table">
+    <div class="panel-title">2026 Financial Year – Home Loans</div>
+    <table class="monthly" id="tbl"></table>
+  </div>
+
+  <!-- Gauge -->
+  <div class="panel panel-gauge">
+    <div class="panel-title">Settlements Since Inception</div>
+    <div class="gauge-wrap"><canvas id="gaugeCanvas"></canvas></div>
+  </div>
+
+  <!-- Right column -->
+  <div class="panel-right">
+    <div class="panel">
+      <div class="panel-title">2026 Financial Target – SimplifyBA</div>
+      <div class="kpi-num" id="baNum"></div>
+      <div id="baProg"></div>
+    </div>
+    <div class="panel">
+      <div class="kpi-num" id="bookNum"></div>
+      <div class="kpi-sub">Book Size</div>
+    </div>
+  </div>
+
+  <!-- YTD settlements -->
+  <div class="panel panel-ytd">
+    <div class="kpi-num" id="ytdNum"></div>
+    <div class="kpi-sub">2026 Financial Target</div>
+    <div id="ytdProg"></div>
+  </div>
+
+  <!-- Total loans -->
+  <div class="panel panel-loans">
+    <div class="kpi-num" id="loansNum"></div>
+    <div class="kpi-sub">Total Loans Settled</div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="brand">
+    <div class="logo">SF</div>
+    <span class="brand-name">Simplify Finance</span>
+  </div>
+  <span class="updated" id="lastUpdated"></span>
+  <div id="clock"></div>
+</footer>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtM = (n, dp=1) =>
+  n >= 1e9 ? '$'+(n/1e9).toFixed(dp)+'B' : '$'+(n/1e6).toFixed(dp)+'M';
+
+function progress(pct, targetLabel) {
+  const p = Math.min(100, pct);
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div class="prog-meta">
+      <span class="pct">${p.toFixed(0)}%</span>
+      <span>${targetLabel}</span>
+    </div>
+    <div class="prog-track"><div class="prog-fill" style="width:${p}%"></div></div>`;
+  return el;
+}
+
+// ── Monthly table ─────────────────────────────────────────────────────────────
+function renderTable(D) {
+  const t = document.getElementById('tbl');
+  t.innerHTML = '';
+  const thead = t.createTHead();
+  const hr = thead.insertRow();
+  ['Month','Deals','Lodgements','Deals','Settlements'].forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    hr.appendChild(th);
+  });
+  const tb = t.createTBody();
+  D.table.forEach(r => {
+    const tr = tb.insertRow();
+    if (!r.deals && !r.settle_val) tr.classList.add('zero');
+    [r.month,
+     r.deals || 0,
+     r.lodgements > 0 ? fmtM(r.lodgements) : '',
+     r.settlements || 0,
+     fmtM(r.settle_val)
+    ].forEach(v => {
+      const td = tr.insertCell();
+      td.textContent = v;
+    });
+  });
+}
+
+// ── Gauge ─────────────────────────────────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('gaugeCanvas');
+  const wrap   = canvas.parentElement;
+
+  window.drawGauge = function(D) {
+    const W  = wrap.clientWidth  || 380;
+    const H  = wrap.clientHeight || 260;
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    const topPad = 24, botPad = 140;
+    const r   = Math.min(W * 0.40, H - topPad - botPad);
+    const lw  = r * 0.20;
+    const cx  = W / 2;
+    const cy  = topPad + r;
+    const pct = Math.min(1, D.total_book_settlements / D.gauge_max);
+    const valAngle = Math.PI + pct * Math.PI;
+
+    // Track
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 0, false);
+    ctx.strokeStyle = '#0c2240';
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Fill
+    const grad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+    grad.addColorStop(0, '#00a878');
+    grad.addColorStop(1, '#00df88');
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, valAngle, false);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Needle
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + r * Math.cos(valAngle), cy + r * Math.sin(valAngle));
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = r * 0.022;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Centre dot
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.048, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    // Value — sits below the needle pivot, clear of the arc
+    const fs = Math.min(r * 0.40, 60);
+    ctx.font = `500 ${fs.toFixed(0)}px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(fmtM(D.total_book_settlements, 1), cx, cy + r * 0.42);
+
+    // Labels
+    const lfs = Math.max(11, r * 0.115);
+    ctx.font = `500 ${lfs.toFixed(0)}px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
+    ctx.fillStyle = '#3a6a8a';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText('$0', 8, cy + 8);
+    ctx.textAlign = 'right';
+    ctx.fillText(fmtM(D.gauge_max, 0), W - 8, cy + 8);
+  }
+
+  drawGauge(D);
+  window.addEventListener('resize', () => drawGauge(window._D || D));
+})();
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+(function tick() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  setTimeout(tick, 10000);
+})();
+
+// ── Live data refresh (no page reload = stays full screen) ────────────────────
+function renderAll(D) {
+  renderTable(D);
+  drawGauge(D);
+
+  // SimplifyBA
+  document.getElementById('baNum').textContent = D.ba_total;
+  const baProg = progress(D.ba_total / D.ba_target * 100, D.ba_target);
+  const baEl = document.getElementById('baProg');
+  baEl.parentNode.replaceChild(baProg, baEl);
+  baProg.id = 'baProg';
+
+  // Book size
+  document.getElementById('bookNum').textContent = fmtM(D.book_size, 0);
+
+  // YTD
+  document.getElementById('ytdNum').textContent = fmtM(D.ytd_settlements, 1);
+  const ytdProg = progress(D.ytd_settlements / D.ytd_target * 100, fmtM(D.ytd_target, 0));
+  const ytdEl = document.getElementById('ytdProg');
+  ytdEl.parentNode.replaceChild(ytdProg, ytdEl);
+  ytdProg.id = 'ytdProg';
+
+  // Total loans
+  document.getElementById('loansNum').textContent = D.total_loans_settled.toLocaleString();
+
+  // Last updated timestamp
+  if (D.updated) document.getElementById('lastUpdated').textContent = 'Updated ' + D.updated;
+}
+
+// ── Data loader — fetches from GitHub Gist, no page reload, no Netlify credits ─
+function loadData() {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', GIST_URL + '?t=' + Date.now(), true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      try {
+        var newD = JSON.parse(xhr.responseText);
+        window._D = newD;
+        document.getElementById('loading').style.display = 'none';
+        renderAll(newD);
+      } catch(e) {}
+    }
+  };
+  xhr.send();
+}
+
+// Load immediately on page open, then refresh every 60000ms
+loadData();
+setInterval(loadData, 60000);
+
+// ── Auto full screen ──────────────────────────────────────────────────────────
+function goFullScreen() {
+  const el = document.documentElement;
+  if      (el.requestFullscreen)       el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+  else if (el.msRequestFullscreen)     el.msRequestFullscreen();
+}
+window.addEventListener('load', () => setTimeout(goFullScreen, 500));
+document.addEventListener('click', goFullScreen);
+</script>
+</body>
+</html>
