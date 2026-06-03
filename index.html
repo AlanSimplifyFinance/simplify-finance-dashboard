@@ -349,8 +349,7 @@ function renderTable(D) {
     ctx.fillText(fmtM(D.gauge_max, 0), W - 8, cy + 8);
   }
 
-  drawGauge(D);
-  window.addEventListener('resize', () => drawGauge(window._D || D));
+  window.addEventListener('resize', () => { if (window._D) drawGauge(window._D); });
 })();
 
 // ── Clock ─────────────────────────────────────────────────────────────────────
