@@ -25,7 +25,7 @@ body {
   grid-template-rows: 3fr 2fr;
   grid-template-areas:
     "table gauge right"
-    "ytd   loans loans";
+    "ytd   loans mission";
   gap: 10px;
   padding: 10px 10px 0 10px;
   min-height: 0;
@@ -56,22 +56,22 @@ body {
 table.monthly {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.83rem;
+  font-size: 0.95rem;
   flex: 1;
 }
 table.monthly th {
   color: #4a6a8a;
-  font-weight: 500;
-  font-size: 0.7rem;
+  font-weight: 600;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 0 0 7px 0;
-  border-bottom: 1px solid #0c1e34;
+  padding: 0 0 9px 0;
+  border-bottom: 2px solid #0c1e34;
   text-align: right;
 }
 table.monthly th:first-child { text-align: left; }
 table.monthly td {
-  padding: 4px 0;
+  padding: 5px 0;
   border-bottom: 1px solid #071a2e;
   color: #cdddef;
   text-align: right;
@@ -79,7 +79,7 @@ table.monthly td {
 }
 table.monthly td:first-child {
   text-align: left;
-  font-weight: 600;
+  font-weight: 700;
   color: #fff;
 }
 table.monthly tr.zero td { color: #1e3a56; }
@@ -146,8 +146,26 @@ table.monthly tr.zero td { color: #1e3a56; }
 }
 
 /* ── Bottom panels ────────────────────────────────────────────────────────── */
-.panel-ytd   { grid-area: ytd; }
-.panel-loans { grid-area: loans; }
+.panel-ytd     { grid-area: ytd; }
+.panel-loans   { grid-area: loans; }
+.panel-mission { grid-area: mission; display: flex; flex-direction: column; justify-content: center; }
+
+.mission-text {
+  font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+  font-style: italic;
+  color: #a8c4de;
+  line-height: 1.65;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.mission-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #3a6a8a;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
 
 /* ── Footer ───────────────────────────────────────────────────────────────── */
 footer {
@@ -220,6 +238,12 @@ footer {
     <div class="kpi-sub">Total Loans Settled</div>
   </div>
 
+  <!-- Mission statement -->
+  <div class="panel panel-mission">
+    <div class="mission-label">Our Mission</div>
+    <div class="mission-text">By making loans simple, efficient, and stress-free, while delivering exceptional customer service, we will continue building our business one customer at a time.</div>
+  </div>
+
 </div>
 
 <footer>
@@ -254,7 +278,7 @@ function renderTable(D) {
   t.innerHTML = '';
   const thead = t.createTHead();
   const hr = thead.insertRow();
-  ['Month','Deals','Lodgements','Deals','Settlements'].forEach(h => {
+  ['Month','Deals','Lodged $','Settled #','Settled $'].forEach(h => {
     const th = document.createElement('th');
     th.textContent = h;
     hr.appendChild(th);
