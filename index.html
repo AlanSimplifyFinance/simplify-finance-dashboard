@@ -56,22 +56,22 @@ body {
 table.monthly {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 1.0rem;
   flex: 1;
 }
 table.monthly th {
   color: #4a6a8a;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 0 0 8px 0;
+  padding: 0 0 10px 0;
   border-bottom: 2px solid #0c1e34;
   text-align: right;
 }
 table.monthly th:first-child { text-align: left; }
 table.monthly td {
-  padding: 3.5px 0;
+  padding: 5px 0;
   border-bottom: 1px solid #071a2e;
   color: #cdddef;
   text-align: right;
@@ -83,6 +83,12 @@ table.monthly td:first-child {
   color: #fff;
 }
 table.monthly tr.zero td { color: #1e3a56; }
+table.monthly tr.current-month td { background: rgba(0,200,168,0.07); }
+table.monthly tr.current-month td:first-child {
+  color: #00c8a8;
+  border-left: 3px solid #00c8a8;
+  padding-left: 7px;
+}
 
 /* ── Gauge ────────────────────────────────────────────────────────────────── */
 .panel-gauge {
@@ -189,7 +195,6 @@ footer {
 }
 .brand-name  { font-size: 0.85rem; font-weight: 500; color: #7a9ab8; }
 .updated     { font-size: 0.7rem;  color: #2a4a6a; }
-#clock       { font-size: 1rem; font-weight: 600; color: #7a9ab8; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -252,7 +257,6 @@ footer {
     <span class="brand-name">Simplify Finance</span>
   </div>
   <span class="updated" id="lastUpdated"></span>
-  <div id="clock"></div>
 </footer>
 
 <script>
@@ -285,13 +289,17 @@ function renderTable(D) {
   });
   const tb = t.createTBody();
   D.table.forEach(r => {
+    const isEmpty = !r.deals && !r.settle_val && !r.lodgements && !r.settlements;
+    const isCurrent = r.month === D.current_month;
+    if (isEmpty && !isCurrent) return; // hide empty future months
     const tr = tb.insertRow();
-    if (!r.deals && !r.settle_val) tr.classList.add('zero');
+    if (isEmpty) tr.classList.add('zero');
+    if (isCurrent) tr.classList.add('current-month');
     [r.month,
-     r.deals || 0,
-     r.lodgements > 0 ? fmtM(r.lodgements) : '',
-     r.settlements || 0,
-     fmtM(r.settle_val)
+     r.deals || '–',
+     r.lodgements > 0 ? fmtM(r.lodgements) : '–',
+     r.settlements || '–',
+     r.settle_val > 0 ? fmtM(r.settle_val) : '–'
     ].forEach(v => {
       const td = tr.insertCell();
       td.textContent = v;
@@ -374,14 +382,6 @@ function renderTable(D) {
   }
 
   window.addEventListener('resize', () => { if (window._D) drawGauge(window._D); });
-})();
-
-// ── Clock ─────────────────────────────────────────────────────────────────────
-(function tick() {
-  const n = new Date();
-  document.getElementById('clock').textContent =
-    String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
-  setTimeout(tick, 10000);
 })();
 
 // ── Live data refresh (no page reload = stays full screen) ────────────────────
