@@ -2,454 +2,185 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simplify Finance Dashboard</title>
+<title>Simplify Finance | FY 2026-27</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: #040e1e;
-  color: #fff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* ── Main grid ────────────────────────────────────────────────────────────── */
-.grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: 4fr 1.5fr;
-  grid-template-areas:
-    "table gauge right"
-    "ytd   loans mission";
-  gap: 10px;
-  padding: 10px 10px 0 10px;
-  min-height: 0;
-}
-
-/* ── Shared panel style ───────────────────────────────────────────────────── */
-.panel {
-  background: #071628;
-  border-radius: 7px;
-  padding: 18px 22px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-.panel-title {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: #7a9ab8;
-  margin-bottom: 12px;
-  flex-shrink: 0;
-  letter-spacing: 0.1px;
-}
-
-/* ── Monthly table ────────────────────────────────────────────────────────── */
-.panel-table { grid-area: table; }
-
-table.monthly {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1.05rem;
-  flex: 1;
-}
-table.monthly th {
-  color: #4a6a8a;
-  font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0 0 10px 0;
-  border-bottom: 2px solid #0c1e34;
-  text-align: right;
-}
-table.monthly th:first-child { text-align: left; }
-table.monthly td {
-  padding: 5px 0;
-  border-bottom: 1px solid #071a2e;
-  color: #cdddef;
-  text-align: right;
-  font-size: 1.05rem;
-  font-variant-numeric: tabular-nums;
-}
-table.monthly td:first-child {
-  text-align: left;
-  font-weight: 700;
-  color: #fff;
-}
-table.monthly tr.zero td { color: #1e3a56; }
-table.monthly tr.current-month td {
-  background: rgba(0,200,168,0.10);
-  color: #00e8c4;
-  font-weight: 600;
-}
-table.monthly tr.current-month td:first-child {
-  color: #00e8c4;
-  font-weight: 700;
-  border-left: 3px solid #00c8a8;
-  padding-left: 7px;
-}
-
-/* ── Gauge ────────────────────────────────────────────────────────────────── */
-.panel-gauge {
-  grid-area: gauge;
-  align-items: stretch;
-}
-.gauge-wrap {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  position: relative;
-}
-#gaugeCanvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* ── Right column (stacked) ───────────────────────────────────────────────── */
-.panel-right {
-  grid-area: right;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.panel-right .panel { flex: 1; }
-
-/* ── KPI display ──────────────────────────────────────────────────────────── */
-.kpi-num {
-  font-size: clamp(2.6rem, 4.5vw, 5rem);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -1px;
-  margin-bottom: 6px;
-}
-.kpi-sub {
-  font-size: 0.8rem;
-  color: #7a9ab8;
-  margin-bottom: 10px;
-}
-
-/* ── Progress bar ─────────────────────────────────────────────────────────── */
-.prog-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: #3a6a8a;
-  margin-bottom: 5px;
-}
-.prog-meta .pct { color: #00c8a8; font-weight: 700; }
-.prog-track {
-  height: 9px;
-  background: #0b2040;
-  border-radius: 5px;
-  overflow: hidden;
-}
-.prog-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #009f88, #00d4b0);
-  border-radius: 5px;
-}
-
-/* ── Bottom panels ────────────────────────────────────────────────────────── */
-.panel-ytd     { grid-area: ytd; }
-.panel-loans   { grid-area: loans; }
-.panel-mission { grid-area: mission; display: flex; flex-direction: column; justify-content: center; }
-
-.mission-text {
-  font-size: clamp(0.9rem, 1.5vw, 1.2rem);
-  font-style: italic;
-  color: #a8c4de;
-  line-height: 1.65;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-}
-.mission-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #3a6a8a;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-bottom: 14px;
-}
-
-/* ── Footer ───────────────────────────────────────────────────────────────── */
-footer {
-  height: 42px;
-  background: #030c1a;
-  border-top: 1px solid #0c1e34;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  flex-shrink: 0;
-  margin-top: 10px;
-}
-.brand { display: flex; align-items: center; gap: 10px; }
-.logo {
-  width: 28px; height: 28px;
-  background: #0055b3;
-  border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.68rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;
-}
-.brand-name  { font-size: 0.85rem; font-weight: 500; color: #7a9ab8; }
-.updated     { font-size: 0.7rem;  color: #2a4a6a; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
+.db{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:4fr 1.5fr;
+    grid-template-areas:"tbl tm""ytd mis";gap:10px;padding:10px;height:100vh}
+.pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;
+     overflow:hidden;display:flex;flex-direction:column}
+#pt{grid-area:tbl}
+#pm{grid-area:tm}
+#py{grid-area:ytd}
+#ps{grid-area:mis;align-items:center;justify-content:center}
+.ptitle{font-size:.65rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
+        margin-bottom:8px;border-bottom:1px solid #21262d;padding-bottom:6px;flex-shrink:0}
+table{width:100%;border-collapse:collapse}
+th{color:#7d8590;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
+   padding:5px 10px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
+th:first-child{text-align:left}
+td{padding:5px 10px;text-align:right;font-size:.95rem;border-bottom:1px solid #1a1f26}
+td:first-child{text-align:left;color:#8b949e}
+tr.cur td{background:rgba(0,232,196,.09);color:#00e8c4;font-weight:700}
+tr.cur td:first-child{color:#00e8c4}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.g{background:#3fb950}.a{background:#d29922}.r{background:#f85149}.n{background:#484f58}
+.lupd{font-size:.6rem;color:#484f58;text-align:right;margin-top:auto;padding-top:4px}
+.rp{display:inline-block;width:5px;height:5px;border-radius:50%;background:#3fb950;
+    margin-left:3px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* This Month */
+.tm-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.tm-name{font-size:1.7rem;font-weight:800;color:#00e8c4;margin-bottom:4px}
+.tm-lbl{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em}
+.tm-amt{font-size:2.1rem;font-weight:900;color:#e6edf3;line-height:1.1}
+.tm-tgt{font-size:.8rem;color:#7d8590;margin:4px 0 10px}
+.tm-pct{font-size:2.6rem;font-weight:900;line-height:1}
+.tm-bar{height:8px;background:#21262d;border-radius:4px;margin:8px 0}
+.tm-bar-fill{height:100%;border-radius:4px;transition:width .6s}
+.tm-days{font-size:.72rem;color:#7d8590;margin-bottom:8px}
+.tm-pace{font-size:.85rem;font-weight:700;padding:5px 14px;border-radius:20px;display:inline-block}
+.p-on{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #3fb950}
+.p-sl{background:rgba(210,153,34,.15);color:#d29922;border:1px solid #d29922}
+.p-be{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #f85149}
+.p-ea{background:rgba(125,133,144,.15);color:#7d8590;border:1px solid #484f58}
+/* YTD */
+.ytd-h{font-size:.65rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.ytd-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.ytd-num{font-size:1.7rem;font-weight:800;color:#00e8c4}
+.ytd-of{font-size:.8rem;color:#7d8590}
+.ytd-bar{height:14px;background:#21262d;border-radius:7px;overflow:hidden;margin-bottom:8px}
+.ytd-bar-fill{height:100%;background:linear-gradient(90deg,#00e8c4,#00b4d8);
+              border-radius:7px;transition:width 1s}
+.ytd-stats{display:flex;gap:20px}
+.ytd-stat label{font-size:.6rem;color:#7d8590;text-transform:uppercase;display:block}
+.ytd-stat span{font-size:.85rem;color:#e6edf3;font-weight:600}
+/* Mission */
+.mis{font-size:.92rem;color:#7d8590;text-align:center;line-height:1.8;font-style:italic}
+.mis b{color:#00e8c4;font-style:normal;font-weight:700}
 </style>
 </head>
 <body>
+<div class="db">
 
-<script>const GIST_URL = 'https://gist.githubusercontent.com/AlanSimplifyFinance/de7856c8d314bfe7da8dc0800294a947/raw/data.json';</script>
-
-<div id="loading" style="position:fixed;inset:0;background:#040e1e;display:flex;align-items:center;justify-content:center;z-index:999;font-size:1.2rem;color:#7a9ab8;">Loading dashboard…</div>
-
-<div class="grid">
-
-  <!-- Monthly table -->
-  <div class="panel panel-table">
-    <div class="panel-title">2026 Financial Year – Home Loans</div>
-    <table class="monthly" id="tbl"></table>
+  <div class="pnl" id="pt">
+    <div class="ptitle">Monthly Lodgements &amp; Settlements &mdash; FY 2026-27</div>
+    <table>
+      <thead><tr>
+        <th>Month</th><th>Lodgements</th><th>Settlements</th><th>vs Target</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div class="lupd" id="lu">&mdash;</div>
   </div>
 
-  <!-- Gauge -->
-  <div class="panel panel-gauge">
-    <div class="panel-title">Settlements Since Inception</div>
-    <div class="gauge-wrap"><canvas id="gaugeCanvas"></canvas></div>
-  </div>
-
-  <!-- Right column -->
-  <div class="panel-right">
-    <div class="panel">
-      <div class="panel-title">2026 Financial Target – SimplifyBA</div>
-      <div class="kpi-num" id="baNum"></div>
-      <div id="baProg"></div>
+  <div class="pnl" id="pm">
+    <div class="ptitle">This Month</div>
+    <div class="tm-wrap">
+      <div>
+        <div class="tm-name" id="t-name">&mdash;</div>
+        <div class="tm-lbl">Settled</div>
+        <div class="tm-amt" id="t-amt">&mdash;</div>
+        <div class="tm-tgt" id="t-tgt">of &mdash; target</div>
+      </div>
+      <div>
+        <div class="tm-pct" id="t-pct">&mdash;</div>
+        <div class="tm-bar"><div class="tm-bar-fill" id="t-bar" style="width:0"></div></div>
+        <div class="tm-days" id="t-days">&mdash; days remaining</div>
+        <span class="tm-pace p-ea" id="t-pace">&mdash;</span>
+      </div>
     </div>
-    <div class="panel">
-      <div class="kpi-num" id="bookNum"></div>
-      <div class="kpi-sub">Book Size</div>
+  </div>
+
+  <div class="pnl" id="py">
+    <div class="ytd-h">FY 2026&ndash;27 Progress &mdash; Annual Target: $330M</div>
+    <div class="ytd-row">
+      <div class="ytd-num" id="y-num">$0</div>
+      <div class="ytd-of" id="y-pct">0% of target</div>
+    </div>
+    <div class="ytd-bar"><div class="ytd-bar-fill" id="y-bar" style="width:0%"></div></div>
+    <div class="ytd-stats">
+      <div class="ytd-stat"><label>Projected Year-End</label><span id="y-proj">&mdash;</span></div>
+      <div class="ytd-stat"><label>Remaining to Target</label><span id="y-rem">$330M</span></div>
+      <div class="ytd-stat"><label>Lodgements YTD</label><span id="y-lodge">$0</span></div>
     </div>
   </div>
 
-  <!-- YTD settlements -->
-  <div class="panel panel-ytd">
-    <div class="kpi-num" id="ytdNum"></div>
-    <div class="kpi-sub">2026 Financial Target</div>
-    <div id="ytdProg"></div>
-  </div>
-
-  <!-- Total loans -->
-  <div class="panel panel-loans">
-    <div class="kpi-num" id="loansNum"></div>
-    <div class="kpi-sub">Total Loans Settled</div>
-  </div>
-
-  <!-- Mission statement -->
-  <div class="panel panel-mission">
-    <div class="mission-label">Our Mission</div>
-    <div class="mission-text">By making loans simple, efficient, and stress-free, while delivering exceptional customer service, we will continue building our business one customer at a time.</div>
+  <div class="pnl" id="ps">
+    <p class="mis">
+      <b>By making loans simple, efficient, and stress-free,</b><br>
+      we empower our clients to achieve their property goals<br>
+      and build long-term financial security.
+    </p>
   </div>
 
 </div>
-
-<footer>
-  <div class="brand">
-    <div class="logo">SF</div>
-    <span class="brand-name">Simplify Finance</span>
-  </div>
-  <span class="updated" id="lastUpdated"></span>
-</footer>
-
 <script>
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtM = (n, dp=1) =>
-  n >= 1e9 ? '$'+(n/1e9).toFixed(dp)+'B' : '$'+(n/1e6).toFixed(dp)+'M';
-
-function progress(pct, targetLabel) {
-  const p = Math.min(100, pct);
-  const el = document.createElement('div');
-  el.innerHTML = `
-    <div class="prog-meta">
-      <span class="pct">${p.toFixed(0)}%</span>
-      <span>${targetLabel}</span>
-    </div>
-    <div class="prog-track"><div class="prog-fill" style="width:${p}%"></div></div>`;
-  return el;
+var GIST='https://gist.githubusercontent.com/AlanSimplifyFinance/a1fff041bf6e739a266686272058e182/raw/9e26dfeeb6e641a33dae4961196235bdb965b21b/dashboard_data.json';
+var ANN=330000000;
+function fm(n){
+  if(n>=1000000)return'$'+(n/1000000).toFixed(1)+'M';
+  if(n>=1000)return'$'+(n/1000).toFixed(0)+'K';
+  return'$'+Math.round(n);
 }
-
-// ── Monthly table ─────────────────────────────────────────────────────────────
-function renderTable(D) {
-  const t = document.getElementById('tbl');
-  t.innerHTML = '';
-  const thead = t.createTHead();
-  const hr = thead.insertRow();
-  ['Month','Deals','Lodged $','Settled #','Settled $'].forEach(h => {
-    const th = document.createElement('th');
-    th.textContent = h;
-    hr.appendChild(th);
+function col(p){
+  if(p<=0)return'#484f58';
+  if(p>=90)return'#3fb950';
+  if(p>=70)return'#d29922';
+  return'#f85149';
+}
+function dcls(p){
+  if(p<=0)return'n';if(p>=90)return'g';if(p>=70)return'a';return'r';
+}
+function upd(d){
+  document.getElementById('lu').innerHTML='Updated: '+d.last_updated+'<span class="rp"></span>';
+  var tb=document.getElementById('tb');
+  tb.innerHTML='';
+  d.months.forEach(function(m){
+    if(m.is_empty&&!m.is_current)return;
+    var tr=document.createElement('tr');
+    if(m.is_current)tr.className='cur';
+    var vs='&mdash;';
+    if(m.settlements>0&&m.target>0)
+      vs='<span class="dot '+dcls(m.pct_of_target)+'"></span>'+m.pct_of_target.toFixed(1)+'%';
+    tr.innerHTML='<td>'+m.name+'</td>'+
+      '<td>'+(m.lodgements>0?fm(m.lodgements):'&mdash;')+'</td>'+
+      '<td>'+(m.settlements>0?fm(m.settlements):'&mdash;')+'</td>'+
+      '<td>'+vs+'</td>';
+    tb.appendChild(tr);
   });
-  const tb = t.createTBody();
-  D.table.forEach(r => {
-    const isEmpty = !r.deals && !r.settle_val && !r.lodgements && !r.settlements;
-    const isCurrent = r.month === D.current_month;
-    if (isEmpty && !isCurrent) return; // hide empty future months
-    const tr = tb.insertRow();
-    if (isEmpty) tr.classList.add('zero');
-    if (isCurrent) tr.classList.add('current-month');
-    [r.month,
-     r.deals || '–',
-     r.lodgements > 0 ? fmtM(r.lodgements) : '–',
-     r.settlements || '–',
-     r.settle_val > 0 ? fmtM(r.settle_val) : '–'
-    ].forEach(v => {
-      const td = tr.insertCell();
-      td.textContent = v;
-    });
-  });
+  document.getElementById('t-name').textContent=d.current_month;
+  document.getElementById('t-amt').textContent=d.current_month_settlements>0?fm(d.current_month_settlements):'$0';
+  document.getElementById('t-tgt').textContent='of '+fm(d.current_month_target)+' target';
+  var mp=d.current_month_target>0?(d.current_month_settlements/d.current_month_target*100):0;
+  var pe=document.getElementById('t-pct');
+  pe.textContent=mp.toFixed(1)+'%';pe.style.color=col(mp);
+  var bf=document.getElementById('t-bar');
+  bf.style.width=Math.min(mp,100)+'%';bf.style.background=col(mp);
+  document.getElementById('t-days').textContent=d.days_remaining+' days remaining in '+d.current_month;
+  var pac=document.getElementById('t-pace');
+  pac.textContent=d.pace_status;
+  pac.className='tm-pace';
+  if(d.pace_status==='On Track')pac.classList.add('p-on');
+  else if(d.pace_status==='Slightly Behind')pac.classList.add('p-sl');
+  else if(d.pace_status==='Behind')pac.classList.add('p-be');
+  else pac.classList.add('p-ea');
+  var yp=d.ytd_settlements/ANN*100;
+  document.getElementById('y-num').textContent=fm(d.ytd_settlements);
+  document.getElementById('y-pct').textContent=yp.toFixed(1)+'% of $330M target';
+  document.getElementById('y-bar').style.width=Math.min(yp,100)+'%';
+  document.getElementById('y-proj').textContent=d.projection?fm(d.projection):'&mdash;';
+  document.getElementById('y-rem').textContent=fm(Math.max(0,ANN-d.ytd_settlements));
+  document.getElementById('y-lodge').textContent=fm(d.ytd_lodgements);
 }
-
-// ── Gauge ─────────────────────────────────────────────────────────────────────
-(function() {
-  const canvas = document.getElementById('gaugeCanvas');
-  const wrap   = canvas.parentElement;
-
-  window.drawGauge = function(D) {
-    const W  = wrap.clientWidth  || 380;
-    const H  = wrap.clientHeight || 260;
-    canvas.width  = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, W, H);
-
-    const topPad = 24, botPad = 140;
-    const r   = Math.min(W * 0.40, H - topPad - botPad);
-    const lw  = r * 0.20;
-    const cx  = W / 2;
-    const cy  = topPad + r;
-    const pct = Math.min(1, D.total_book_settlements / D.gauge_max);
-    const valAngle = Math.PI + pct * Math.PI;
-
-    // Track
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, Math.PI, 0, false);
-    ctx.strokeStyle = '#0c2240';
-    ctx.lineWidth = lw;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // Fill
-    const grad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
-    grad.addColorStop(0, '#00a878');
-    grad.addColorStop(1, '#00df88');
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, Math.PI, valAngle, false);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = lw;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // Needle
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + r * Math.cos(valAngle), cy + r * Math.sin(valAngle));
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = r * 0.022;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // Centre dot
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * 0.048, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
-    ctx.fill();
-
-    // Value — sits below the needle pivot, clear of the arc
-    const fs = Math.min(r * 0.40, 60);
-    ctx.font = `500 ${fs.toFixed(0)}px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(fmtM(D.total_book_settlements, 1), cx, cy + r * 0.42);
-
-    // Labels
-    const lfs = Math.max(11, r * 0.115);
-    ctx.font = `500 ${lfs.toFixed(0)}px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif`;
-    ctx.fillStyle = '#3a6a8a';
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'left';
-    ctx.fillText('$0', 8, cy + 8);
-    ctx.textAlign = 'right';
-    ctx.fillText(fmtM(D.gauge_max, 0), W - 8, cy + 8);
-  }
-
-  window.addEventListener('resize', () => { if (window._D) drawGauge(window._D); });
-})();
-
-// ── Live data refresh (no page reload = stays full screen) ────────────────────
-function renderAll(D) {
-  renderTable(D);
-  drawGauge(D);
-
-  // SimplifyBA
-  document.getElementById('baNum').textContent = D.ba_total;
-  const baProg = progress(D.ba_total / D.ba_target * 100, D.ba_target);
-  const baEl = document.getElementById('baProg');
-  baEl.parentNode.replaceChild(baProg, baEl);
-  baProg.id = 'baProg';
-
-  // Book size
-  document.getElementById('bookNum').textContent = fmtM(D.book_size, 0);
-
-  // YTD
-  document.getElementById('ytdNum').textContent = fmtM(D.ytd_settlements, 1);
-  const ytdProg = progress(D.ytd_settlements / D.ytd_target * 100, fmtM(D.ytd_target, 0));
-  const ytdEl = document.getElementById('ytdProg');
-  ytdEl.parentNode.replaceChild(ytdProg, ytdEl);
-  ytdProg.id = 'ytdProg';
-
-  // Total loans
-  document.getElementById('loansNum').textContent = D.total_loans_settled.toLocaleString();
-
-  // Last updated timestamp
-  if (D.updated) document.getElementById('lastUpdated').textContent = 'Updated ' + D.updated;
+function go(){
+  var x=new XMLHttpRequest();
+  x.open('GET',GIST+'?t='+Date.now(),true);
+  x.onload=function(){if(x.status===200){try{upd(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
+  x.send();
 }
-
-// ── Data loader — fetches from GitHub Gist, no page reload, no Netlify credits ─
-function loadData() {
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', GIST_URL + '?t=' + Date.now(), true);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      try {
-        var newD = JSON.parse(xhr.responseText);
-        window._D = newD;
-        document.getElementById('loading').style.display = 'none';
-        renderAll(newD);
-      } catch(e) {}
-    }
-  };
-  xhr.send();
-}
-
-// Load immediately on page open, then refresh every 60000ms
-loadData();
-setInterval(loadData, 60000);
-
-// ── Auto full screen ──────────────────────────────────────────────────────────
-function goFullScreen() {
-  const el = document.documentElement;
-  if      (el.requestFullscreen)       el.requestFullscreen();
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-  else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
-  else if (el.msRequestFullscreen)     el.msRequestFullscreen();
-}
-window.addEventListener('load', () => setTimeout(goFullScreen, 500));
-document.addEventListener('click', goFullScreen);
+go();setInterval(go,60000);
 </script>
 </body>
 </html>
