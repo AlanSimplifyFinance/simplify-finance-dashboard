@@ -28,9 +28,9 @@ td:first-child{text-align:left;color:#7d8590;font-size:.82rem;font-weight:400}
 /* Current month — teal highlight, slightly larger */
 tr.cur td{background:rgba(0,232,196,.1);color:#00e8c4;font-weight:700;font-size:.92rem}
 tr.cur td:first-child{color:#00e8c4;font-weight:700}
-/* Future months — very dim, don't compete */
-tr.fut td{color:#2d333b}
-tr.fut td:first-child{color:#2d333b}
+/* Future months — very dim and compact, just placeholder rows */
+tr.fut td{color:#2d333b;padding:1px 7px;font-size:.7rem;line-height:1.1}
+tr.fut td:first-child{color:#2d333b;font-size:.7rem}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
 .g{background:#3fb950}.a{background:#d29922}.r{background:#f85149}.n{background:#2d333b}
 .lupd{font-size:.5rem;color:#3a4150;text-align:right;margin-top:auto;padding-top:3px}
@@ -230,9 +230,9 @@ function drawChart(history){
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   if(!history||!history.length)return;
-  // Scale fonts relative to canvas size so they always fit
-  var fs=Math.max(11,Math.round(cv.height*0.038));
-  var pL=fs*5,pR=12,pT=12,pB=fs*4.5;
+  // Scale fonts from width (more reliable than height across screen sizes)
+  var fs=Math.max(12,Math.round(cv.width*0.022));
+  var pL=fs*5,pR=12,pT=12,pB=Math.round(fs*6);
   var cW=cv.width-pL-pR,cH=cv.height-pT-pB;
   var maxV=0;
   history.forEach(function(yr){yr.months.forEach(function(v){if(v>maxV)maxV=v;});});
