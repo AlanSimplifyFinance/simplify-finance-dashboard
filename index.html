@@ -5,20 +5,23 @@
 html{font-size:20px}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
 .db{display:grid;grid-template-columns:1.4fr 1.3fr 1fr;grid-template-rows:3fr 2fr;
-    grid-template-areas:"perf focus leave""ytd rot vis";gap:9px;padding:9px;height:100vh}
+    grid-template-areas:"perf focus leave""ytd rot rot";gap:9px;padding:9px;height:100vh}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;
      overflow:hidden;display:flex;flex-direction:column}
 #pp{grid-area:perf}#pf{grid-area:focus}#pl{grid-area:leave}
-#py{grid-area:ytd}#pr{grid-area:rot;position:relative}#pv{grid-area:vis;align-items:center;justify-content:center}
-/* Panel title — small dim label, acts as background chrome */
-.ptitle{font-size:.6rem;color:#4e5866;text-transform:uppercase;letter-spacing:.12em;
+#py{grid-area:ytd}#pr{grid-area:rot;position:relative}
+/* Vision text now lives inside the Leave panel — #pv is hidden */
+#pv{display:none}
+.vis-block{margin-top:auto;padding-top:10px;border-top:1px solid #21262d}
+/* Panel title — small label, clearly secondary */
+.ptitle{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;
         margin-bottom:8px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
 /* ── Table ───────────────────────────────────────────────── */
 table{width:100%;border-collapse:collapse}
-th{color:#4e5866;font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;
-   padding:4px 7px;text-align:right;border-bottom:1px solid #21262d;white-space:nowrap}
+th{color:#7d8590;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;
+   padding:4px 7px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
 th:first-child{text-align:left}
-th.grp{text-align:center;color:#3a4150;font-size:.55rem;border-bottom:1px solid #2d333b;padding-bottom:2px}
+th.grp{text-align:center;color:#7d8590;font-size:.58rem;border-bottom:1px solid #30363d;padding-bottom:2px}
 /* Data rows — bright and bold so they read from distance */
 td{padding:4px 7px;text-align:right;font-size:.88rem;font-weight:600;
    color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
@@ -37,11 +40,11 @@ tr.fut td:first-child{color:#2d333b}
 /* ── Month in Focus ───────────────────────────────────────── */
 .f-month{font-size:1.55rem;font-weight:800;color:#00e8c4;margin-bottom:6px}
 /* Section dividers — very dim */
-.f-section{font-size:.55rem;color:#4e5866;text-transform:uppercase;letter-spacing:.1em;
+.f-section{font-size:.58rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
            margin-top:7px;margin-bottom:4px;border-top:1px solid #21262d;padding-top:5px}
 .f-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
-/* Labels dim, values bright — key to TV readability */
-.f-label{font-size:.7rem;color:#4e5866}
+/* Labels readable but clearly secondary to data values */
+.f-label{font-size:.72rem;color:#8b949e}
 .f-val{font-size:.95rem;color:#f0f6fc;font-weight:700}
 .f-grid{display:grid;grid-template-columns:1fr auto auto;gap:3px 16px;align-items:baseline;margin-bottom:3px}
 .f-col-hdr{font-size:.55rem;color:#4e5866;text-transform:uppercase;text-align:right}
@@ -49,7 +52,7 @@ tr.fut td:first-child{color:#2d333b}
 .f-pct{font-size:1.9rem;font-weight:900;line-height:1;margin:5px 0}
 .f-bar{height:7px;background:#21262d;border-radius:4px;margin:5px 0}
 .f-bar-fill{height:100%;border-radius:4px;transition:width .6s}
-.f-days{font-size:.6rem;color:#4e5866;margin-bottom:5px}
+.f-days{font-size:.62rem;color:#8b949e;margin-bottom:5px}
 .f-pace{font-size:.8rem;font-weight:700;padding:4px 12px;border-radius:12px;display:inline-block}
 .p-on{background:rgba(63,185,80,.18);color:#3fb950;border:1px solid #3fb950}
 .p-sl{background:rgba(210,153,34,.18);color:#d29922;border:1px solid #d29922}
@@ -63,7 +66,7 @@ tr.fut td:first-child{color:#2d333b}
 .leave-dates{font-size:.78rem;color:#7d8590;text-align:right}
 .no-leave{font-size:.82rem;color:#3a4150;font-style:italic;margin-top:8px}
 /* ── YTD ──────────────────────────────────────────────────── */
-.ytd-h{font-size:.58rem;color:#4e5866;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.ytd-h{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
 .ytd-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
 /* Hero number — large and teal */
 .ytd-num{font-size:2rem;font-weight:800;color:#00e8c4}
@@ -72,13 +75,13 @@ tr.fut td:first-child{color:#2d333b}
 .ytd-bar-fill{height:100%;background:linear-gradient(90deg,#00e8c4,#00b4d8);border-radius:7px;transition:width 1s}
 .ytd-stats{display:flex;gap:20px}
 /* Stat labels dim, stat values bright */
-.ytd-stat label{font-size:.55rem;color:#4e5866;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:2px}
+.ytd-stat label{font-size:.58rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:2px}
 .ytd-stat span{font-size:.92rem;color:#f0f6fc;font-weight:700}
 /* ── Rotating panel ───────────────────────────────────────── */
 .rot-view{position:absolute;inset:0;padding:14px;display:flex;flex-direction:column;
           transition:opacity .8s;opacity:0;pointer-events:none}
 .rot-view.active{opacity:1;pointer-events:auto}
-.rot-title{font-size:.58rem;color:#4e5866;text-transform:uppercase;letter-spacing:.12em;
+.rot-title{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;
            margin-bottom:6px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
 canvas{flex:1;width:100%}
 .rot-indicator{display:flex;gap:7px;justify-content:center;position:absolute;bottom:8px;left:0;right:0}
@@ -129,6 +132,13 @@ canvas{flex:1;width:100%}
   <div class="pnl" id="pl">
     <div class="ptitle" id="leave-title">Leave</div>
     <div id="leave-list"></div>
+    <div class="vis-block">
+      <p class="vis-text">
+        <b>By making loans simple, efficient, and stress-free,</b><br>
+        we empower our clients to achieve their<br>
+        property goals and build long-term<br>financial security.
+      </p>
+    </div>
   </div>
 
   <!-- YTD Progress -->
