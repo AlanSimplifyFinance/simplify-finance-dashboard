@@ -87,8 +87,8 @@ canvas{flex:1;width:100%}
 .rot-dot{width:7px;height:7px;border-radius:50%;background:#2d333b;transition:background .3s}
 .rot-dot.active{background:#00e8c4}
 /* ── Vision ───────────────────────────────────────────────── */
-.vis-text{font-size:.82rem;color:#8b949e;text-align:center;line-height:1.6;font-style:italic}
-.vis-text b{color:#00e8c4;font-style:normal;font-weight:700;font-size:.88rem}
+.vis-text{font-size:1rem;color:#8b949e;text-align:center;line-height:1.7;font-style:italic}
+.vis-text b{color:#00e8c4;font-style:normal;font-weight:700;font-size:1.05rem}
 </style></head><body>
 <div class="db">
 
@@ -215,31 +215,34 @@ function drawGauge(allTime){
 function drawChart(history){
   var cv=document.getElementById('chart-canvas');
   var rect=cv.getBoundingClientRect();
-  cv.width=rect.width||280;cv.height=rect.height||130;
+  cv.width=rect.width||280;cv.height=rect.height||200;
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   if(!history||!history.length)return;
-  var pL=32,pR=8,pT=8,pB=36;
+  // Scale fonts relative to canvas size so they always fit
+  var fs=Math.max(11,Math.round(cv.height*0.038));
+  var pL=fs*5,pR=12,pT=12,pB=fs*4.5;
   var cW=cv.width-pL-pR,cH=cv.height-pT-pB;
   var maxV=0;
   history.forEach(function(yr){yr.months.forEach(function(v){if(v>maxV)maxV=v;});});
   if(maxV===0)return;
   maxV=Math.ceil(maxV/5000000)*5000000;
-  var colors=['#484f58','#58a6ff','#7ee787','#d29922','#00e8c4'];
+  var colors=['#58a6ff','#7ee787','#d29922','#f78166','#00e8c4'];
   var months=D?D.months.map(function(m){return m.name;}):['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'];
-  // Grid lines
+  // Grid lines + Y axis labels
   ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
   for(var g=0;g<=4;g++){
     var gy=pT+cH-(g/4)*cH;
     ctx.beginPath();ctx.moveTo(pL,gy);ctx.lineTo(pL+cW,gy);ctx.stroke();
-    ctx.fillStyle='#484f58';ctx.font='9px Segoe UI';ctx.textAlign='right';
-    ctx.fillText(fm(maxV*g/4),pL-2,gy+3);
+    ctx.fillStyle='#7d8590';ctx.font=fs+'px Segoe UI';ctx.textAlign='right';
+    ctx.fillText(fm(maxV*g/4),pL-4,gy+fs*0.35);
   }
-  // Lines
+  // Lines — current year thicker and brightest
   history.forEach(function(yr,yi){
     ctx.beginPath();
     ctx.strokeStyle=colors[yi%colors.length];
-    ctx.lineWidth=yi===history.length-1?2.5:1.2;
+    ctx.lineWidth=yi===history.length-1?3:1.5;
+    ctx.globalAlpha=yi===history.length-1?1:0.65;
     var started=false;
     yr.months.forEach(function(v,mi){
       var x=pL+(mi/11)*cW,y=pT+cH-(v/maxV)*cH;
@@ -247,21 +250,26 @@ function drawChart(history){
       if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}
     });
     ctx.stroke();
+    ctx.globalAlpha=1;
   });
   // X axis labels
   months.forEach(function(m,i){
     var x=pL+(i/11)*cW;
-    ctx.fillStyle='#7d8590';ctx.font='8px Segoe UI';ctx.textAlign='center';
-    ctx.fillText(m,x,cv.height-pB+12);
+    ctx.fillStyle='#8b949e';ctx.font=fs+'px Segoe UI';ctx.textAlign='center';
+    ctx.fillText(m,x,pT+cH+fs*1.4);
   });
-  // Legend
-  var lx=pL,ly=cv.height-8;
+  // Legend — centred, spaced evenly
+  ctx.font=(fs+1)+'px Segoe UI';
+  var swW=fs*1.4,swH=fs*0.5,gap=fs*0.6;
+  var totalW=0;
+  history.forEach(function(yr){totalW+=ctx.measureText(yr.label).width+swW+gap+fs*1.5;});
+  var lx=(cv.width-totalW)/2,ly=cv.height-fs*0.6;
   history.forEach(function(yr,yi){
     ctx.fillStyle=colors[yi%colors.length];
-    ctx.fillRect(lx,ly-6,16,4);
-    ctx.fillStyle='#7d8590';ctx.font='8px Segoe UI';ctx.textAlign='left';
-    ctx.fillText(yr.label,lx+19,ly);
-    lx+=ctx.measureText(yr.label).width+30;
+    ctx.fillRect(lx,ly-swH-2,swW,swH+2);
+    ctx.fillStyle='#c9d1d9';ctx.textAlign='left';
+    ctx.fillText(yr.label,lx+swW+gap,ly);
+    lx+=ctx.measureText(yr.label).width+swW+gap+fs*1.5;
   });
 }
 
