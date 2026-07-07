@@ -2,8 +2,9 @@
 <html lang="en"><head><meta charset="UTF-8"><title>Simplify Finance | FY 2026-27</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+html{font-size:18px}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
-.db{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:3fr 2fr;
+.db{display:grid;grid-template-columns:1.4fr 1.3fr 1fr;grid-template-rows:3fr 2fr;
     grid-template-areas:"perf focus leave""ytd rot vis";gap:9px;padding:9px;height:100vh}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;
      overflow:hidden;display:flex;flex-direction:column}
@@ -338,6 +339,19 @@ window.addEventListener('resize',function(){
   if(!D)return;
   if(rotIdx===0)drawGauge(D.all_time_settlements);
   else drawChart(D.history);
+});
+
+// Fullscreen — click, Enter, Space, F, or F11 on TV remote
+function toggleFS(){
+  if(!document.fullscreenElement){
+    (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement);
+  }else{
+    (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+  }
+}
+document.addEventListener('click',toggleFS);
+document.addEventListener('keydown',function(e){
+  if(['F11','f','F','Enter',' '].indexOf(e.key)>-1){toggleFS();e.preventDefault();}
 });
 
 go();
