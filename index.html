@@ -4,15 +4,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:20px}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
-.db{display:grid;grid-template-columns:1.4fr 1.3fr 1fr;grid-template-rows:2.2fr 2.8fr;
-    grid-template-areas:"perf focus leave""ytd rot rot";gap:9px;padding:9px;height:100vh}
+.db{display:grid;grid-template-columns:1.4fr 1.3fr 1fr;grid-template-rows:2.5fr 1.5fr 1.5fr;
+    grid-template-areas:"perf focus leave""ytd rot rot""vis rot rot";gap:9px;padding:9px;height:100vh}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;
      overflow:hidden;display:flex;flex-direction:column}
 #pp{grid-area:perf}#pf{grid-area:focus}#pl{grid-area:leave}
 #py{grid-area:ytd}#pr{grid-area:rot;position:relative}
-/* Vision text lives inside the Leave panel — old #pv panel is hidden */
-#pv{display:none}
-.vis-block{margin-top:16px;padding-top:12px;border-top:1px solid #21262d}
+/* Vision panel — bottom-left, sits below YTD */
+#pv{grid-area:vis;align-items:center;justify-content:center}
 /* Panel title — small label, clearly secondary */
 .ptitle{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;
         margin-bottom:8px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
@@ -132,13 +131,6 @@ canvas{flex:1;width:100%}
   <div class="pnl" id="pl">
     <div class="ptitle" id="leave-title">Leave</div>
     <div id="leave-list"></div>
-    <div class="vis-block">
-      <p class="vis-text">
-        <b>By making loans simple, efficient, and stress-free,</b><br>
-        we empower our clients to achieve their<br>
-        property goals and build long-term<br>financial security.
-      </p>
-    </div>
   </div>
 
   <!-- YTD Progress -->
