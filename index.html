@@ -1,100 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Simplify Finance | FY 2026-27</title>
+<html lang="en"><head><meta charset="UTF-8"><title>Simplify Finance | FY 2026-27</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
-.db{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:4fr 1.5fr;
-    grid-template-areas:"tbl tm""ytd mis";gap:10px;padding:10px;height:100vh}
-.pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px;
+.db{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:4fr 1.5fr;
+    grid-template-areas:"perf focus leave""ytd rot vis";gap:9px;padding:9px;height:100vh}
+.pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;
      overflow:hidden;display:flex;flex-direction:column}
-#pt{grid-area:tbl}
-#pm{grid-area:tm}
-#py{grid-area:ytd}
-#ps{grid-area:mis;align-items:center;justify-content:center}
-.ptitle{font-size:.65rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
-        margin-bottom:8px;border-bottom:1px solid #21262d;padding-bottom:6px;flex-shrink:0}
+#pp{grid-area:perf}#pf{grid-area:focus}#pl{grid-area:leave}
+#py{grid-area:ytd}#pr{grid-area:rot;position:relative}#pv{grid-area:vis;align-items:center;justify-content:center}
+.ptitle{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
+        margin-bottom:7px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
+/* Table */
 table{width:100%;border-collapse:collapse}
-th{color:#7d8590;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
-   padding:5px 10px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
+th{color:#7d8590;font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;
+   padding:4px 8px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
 th:first-child{text-align:left}
-td{padding:5px 10px;text-align:right;font-size:.95rem;border-bottom:1px solid #1a1f26}
-td:first-child{text-align:left;color:#8b949e}
+td{padding:4px 8px;text-align:right;font-size:.85rem;border-bottom:1px solid #1a1f26;white-space:nowrap}
+td:first-child{text-align:left;color:#8b949e;font-size:.85rem}
 tr.cur td{background:rgba(0,232,196,.09);color:#00e8c4;font-weight:700}
 tr.cur td:first-child{color:#00e8c4}
-.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+tr.fut td{color:#484f58}
+tr.fut td:first-child{color:#343b44}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
 .g{background:#3fb950}.a{background:#d29922}.r{background:#f85149}.n{background:#484f58}
-.lupd{font-size:.6rem;color:#484f58;text-align:right;margin-top:auto;padding-top:4px}
-.rp{display:inline-block;width:5px;height:5px;border-radius:50%;background:#3fb950;
-    margin-left:3px;animation:pulse 2s infinite}
+.lupd{font-size:.55rem;color:#484f58;text-align:right;margin-top:auto;padding-top:3px}
+.rp{display:inline-block;width:5px;height:5px;border-radius:50%;background:#3fb950;margin-left:3px;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-/* This Month */
-.tm-wrap{flex:1;display:flex;flex-direction:column;justify-content:space-between}
-.tm-name{font-size:1.7rem;font-weight:800;color:#00e8c4;margin-bottom:4px}
-.tm-lbl{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em}
-.tm-amt{font-size:2.1rem;font-weight:900;color:#e6edf3;line-height:1.1}
-.tm-tgt{font-size:.8rem;color:#7d8590;margin:4px 0 10px}
-.tm-pct{font-size:2.6rem;font-weight:900;line-height:1}
-.tm-bar{height:8px;background:#21262d;border-radius:4px;margin:8px 0}
-.tm-bar-fill{height:100%;border-radius:4px;transition:width .6s}
-.tm-days{font-size:.72rem;color:#7d8590;margin-bottom:8px}
-.tm-pace{font-size:.85rem;font-weight:700;padding:5px 14px;border-radius:20px;display:inline-block}
+/* Month in Focus */
+.f-month{font-size:1.6rem;font-weight:800;color:#00e8c4;margin-bottom:8px}
+.f-section{font-size:.58rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;
+           margin-top:8px;margin-bottom:4px;border-top:1px solid #21262d;padding-top:6px}
+.f-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
+.f-label{font-size:.75rem;color:#7d8590}
+.f-val{font-size:.85rem;color:#e6edf3;font-weight:600}
+.f-pct{font-size:1.8rem;font-weight:900;line-height:1;margin:6px 0}
+.f-bar{height:6px;background:#21262d;border-radius:3px;margin:4px 0}
+.f-bar-fill{height:100%;border-radius:3px;transition:width .6s}
+.f-days{font-size:.65rem;color:#7d8590;margin-bottom:5px}
+.f-pace{font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:12px;display:inline-block}
 .p-on{background:rgba(63,185,80,.15);color:#3fb950;border:1px solid #3fb950}
 .p-sl{background:rgba(210,153,34,.15);color:#d29922;border:1px solid #d29922}
 .p-be{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #f85149}
 .p-ea{background:rgba(125,133,144,.15);color:#7d8590;border:1px solid #484f58}
+/* Leave */
+.leave-entry{margin-bottom:7px}
+.leave-name{font-size:.82rem;color:#e6edf3;font-weight:600}
+.leave-dates{font-size:.72rem;color:#7d8590}
+.no-leave{font-size:.8rem;color:#484f58;font-style:italic;margin-top:8px}
 /* YTD */
-.ytd-h{font-size:.65rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-.ytd-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
-.ytd-num{font-size:1.7rem;font-weight:800;color:#00e8c4}
-.ytd-of{font-size:.8rem;color:#7d8590}
-.ytd-bar{height:14px;background:#21262d;border-radius:7px;overflow:hidden;margin-bottom:8px}
-.ytd-bar-fill{height:100%;background:linear-gradient(90deg,#00e8c4,#00b4d8);
-              border-radius:7px;transition:width 1s}
-.ytd-stats{display:flex;gap:20px}
-.ytd-stat label{font-size:.6rem;color:#7d8590;text-transform:uppercase;display:block}
-.ytd-stat span{font-size:.85rem;color:#e6edf3;font-weight:600}
-/* Mission */
-.mis{font-size:.92rem;color:#7d8590;text-align:center;line-height:1.8;font-style:italic}
-.mis b{color:#00e8c4;font-style:normal;font-weight:700}
-</style>
-</head>
-<body>
+.ytd-h{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.ytd-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.ytd-num{font-size:1.6rem;font-weight:800;color:#00e8c4}
+.ytd-of{font-size:.75rem;color:#7d8590}
+.ytd-bar{height:12px;background:#21262d;border-radius:6px;overflow:hidden;margin-bottom:7px}
+.ytd-bar-fill{height:100%;background:linear-gradient(90deg,#00e8c4,#00b4d8);border-radius:6px;transition:width 1s}
+.ytd-stats{display:flex;gap:16px}
+.ytd-stat label{font-size:.58rem;color:#7d8590;text-transform:uppercase;display:block}
+.ytd-stat span{font-size:.8rem;color:#e6edf3;font-weight:600}
+/* Rotating panel */
+.rot-view{position:absolute;inset:0;padding:12px;display:flex;flex-direction:column;
+          transition:opacity .8s;opacity:0;pointer-events:none}
+.rot-view.active{opacity:1;pointer-events:auto}
+.rot-title{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
+           margin-bottom:5px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
+canvas{flex:1;width:100%}
+.rot-indicator{display:flex;gap:6px;justify-content:center;position:absolute;bottom:8px;left:0;right:0}
+.rot-dot{width:6px;height:6px;border-radius:50%;background:#30363d;transition:background .3s}
+.rot-dot.active{background:#00e8c4}
+/* Vision */
+.vis-text{font-size:.88rem;color:#7d8590;text-align:center;line-height:1.8;font-style:italic}
+.vis-text b{color:#00e8c4;font-style:normal;font-weight:700}
+</style></head><body>
 <div class="db">
 
-  <div class="pnl" id="pt">
-    <div class="ptitle">Monthly Lodgements &amp; Settlements &mdash; FY 2026-27</div>
-    <table>
-      <thead><tr>
-        <th>Month</th><th>Lodgements</th><th>Settlements</th><th>vs Target</th>
-      </tr></thead>
-      <tbody id="tb"></tbody>
-    </table>
+  <!-- Performance Table -->
+  <div class="pnl" id="pp">
+    <div class="ptitle" id="perf-title">Financial Year 2027 Performance</div>
+    <table><thead><tr>
+      <th>Month</th><th>Lodg.</th><th>Settled</th><th>vs Target</th>
+    </tr></thead><tbody id="tb"></tbody></table>
     <div class="lupd" id="lu">&mdash;</div>
   </div>
 
-  <div class="pnl" id="pm">
-    <div class="ptitle">This Month</div>
-    <div class="tm-wrap">
-      <div>
-        <div class="tm-name" id="t-name">&mdash;</div>
-        <div class="tm-lbl">Settled</div>
-        <div class="tm-amt" id="t-amt">&mdash;</div>
-        <div class="tm-tgt" id="t-tgt">of &mdash; target</div>
-      </div>
-      <div>
-        <div class="tm-pct" id="t-pct">&mdash;</div>
-        <div class="tm-bar"><div class="tm-bar-fill" id="t-bar" style="width:0"></div></div>
-        <div class="tm-days" id="t-days">&mdash; days remaining</div>
-        <span class="tm-pace p-ea" id="t-pace">&mdash;</span>
-      </div>
-    </div>
+  <!-- Month in Focus -->
+  <div class="pnl" id="pf">
+    <div class="ptitle">Month in Focus</div>
+    <div class="f-month" id="f-month">&mdash;</div>
+    <div class="f-section">Pipeline</div>
+    <div class="f-row"><span class="f-label">Borrowing Capacities</span><span class="f-val" id="f-bc">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Lending Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
+    <div class="f-section">This Month</div>
+    <div class="f-row"><span class="f-label">Lodged</span><span class="f-val" id="f-lodge">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Settled</span><span class="f-val" id="f-sett">&mdash;</span></div>
+    <div class="f-section">Settlement Pace</div>
+    <div class="f-pct" id="f-pct">&mdash;</div>
+    <div class="f-bar"><div class="f-bar-fill" id="f-bar" style="width:0"></div></div>
+    <div class="f-days" id="f-days">&mdash;</div>
+    <span class="f-pace p-ea" id="f-pace">&mdash;</span>
   </div>
 
+  <!-- Leave -->
+  <div class="pnl" id="pl">
+    <div class="ptitle" id="leave-title">Leave</div>
+    <div id="leave-list"></div>
+  </div>
+
+  <!-- YTD Progress -->
   <div class="pnl" id="py">
-    <div class="ytd-h">FY 2026&ndash;27 Progress &mdash; Annual Target: $330M</div>
+    <div class="ytd-h">FY 2026&ndash;27 &mdash; Annual Target: $330M</div>
     <div class="ytd-row">
       <div class="ytd-num" id="y-num">$0</div>
       <div class="ytd-of" id="y-pct">0% of target</div>
@@ -102,13 +116,30 @@ tr.cur td:first-child{color:#00e8c4}
     <div class="ytd-bar"><div class="ytd-bar-fill" id="y-bar" style="width:0%"></div></div>
     <div class="ytd-stats">
       <div class="ytd-stat"><label>Projected Year-End</label><span id="y-proj">&mdash;</span></div>
-      <div class="ytd-stat"><label>Remaining to Target</label><span id="y-rem">$330M</span></div>
+      <div class="ytd-stat"><label>Remaining</label><span id="y-rem">$330M</span></div>
       <div class="ytd-stat"><label>Lodgements YTD</label><span id="y-lodge">$0</span></div>
     </div>
   </div>
 
-  <div class="pnl" id="ps">
-    <p class="mis">
+  <!-- Rotating: Gauge + 5yr Chart -->
+  <div class="pnl" id="pr" style="padding:0;overflow:visible">
+    <div class="rot-view active" id="rv0">
+      <div class="rot-title">All Time Settlements</div>
+      <canvas id="gauge-canvas"></canvas>
+    </div>
+    <div class="rot-view" id="rv1">
+      <div class="rot-title">5 Year Settlement History</div>
+      <canvas id="chart-canvas"></canvas>
+    </div>
+    <div class="rot-indicator">
+      <div class="rot-dot active" id="rd0"></div>
+      <div class="rot-dot" id="rd1"></div>
+    </div>
+  </div>
+
+  <!-- Vision -->
+  <div class="pnl" id="pv">
+    <p class="vis-text">
       <b>By making loans simple, efficient, and stress-free,</b><br>
       we empower our clients to achieve their property goals<br>
       and build long-term financial security.
@@ -119,53 +150,159 @@ tr.cur td:first-child{color:#00e8c4}
 <script>
 var GIST='https://gist.githubusercontent.com/AlanSimplifyFinance/a1fff041bf6e739a266686272058e182/raw/dashboard_data.json';
 var ANN=330000000;
-function fm(n){
-  if(n>=1000000)return'$'+(n/1000000).toFixed(1)+'M';
-  if(n>=1000)return'$'+(n/1000).toFixed(0)+'K';
-  return'$'+Math.round(n);
+var rotIdx=0, D=null;
+
+function fm(n){if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(0)+'K';return'$'+Math.round(n);}
+function col(p){if(p<=0)return'#484f58';if(p>=100)return'#3fb950';if(p>=75)return'#d29922';return'#f85149';}
+function dcls(p){if(p<=0)return'n';if(p>=100)return'g';if(p>=75)return'a';return'r';}
+
+function drawGauge(allTime){
+  var cv=document.getElementById('gauge-canvas');
+  var rect=cv.getBoundingClientRect();
+  cv.width=rect.width||280;cv.height=rect.height||160;
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  var cx=cv.width/2,cy=cv.height*0.72,r=Math.min(cx,cy)*0.8;
+  var maxVal=Math.ceil(allTime/500000000)*500000000+500000000;
+  var pct=Math.min(allTime/maxVal,1);
+  // Background
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,2*Math.PI);
+  ctx.strokeStyle='#21262d';ctx.lineWidth=r*0.18;ctx.stroke();
+  // Value arc
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,Math.PI+pct*Math.PI);
+  ctx.strokeStyle='#00e8c4';ctx.lineWidth=r*0.18;ctx.stroke();
+  // Inner glow ring
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,Math.PI+pct*Math.PI);
+  ctx.strokeStyle='rgba(0,232,196,0.15)';ctx.lineWidth=r*0.3;ctx.stroke();
+  // Value text
+  ctx.fillStyle='#e6edf3';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold '+Math.round(r*0.26)+'px Segoe UI,sans-serif';
+  ctx.fillText(fm(allTime),cx,cy-r*0.08);
+  ctx.fillStyle='#7d8590';ctx.font=Math.round(r*0.11)+'px Segoe UI,sans-serif';
+  ctx.fillText('Total Settlements',cx,cy+r*0.18);
+  // Min/max labels
+  ctx.fillStyle='#484f58';ctx.font=Math.round(r*0.1)+'px Segoe UI,sans-serif';
+  ctx.textAlign='left';ctx.fillText('$0',cx-r-4,cy+4);
+  ctx.textAlign='right';ctx.fillText(fm(maxVal),cx+r+4,cy+4);
 }
-function col(p){
-  if(p<=0)return'#484f58';
-  if(p>=90)return'#3fb950';
-  if(p>=70)return'#d29922';
-  return'#f85149';
+
+function drawChart(history){
+  var cv=document.getElementById('chart-canvas');
+  var rect=cv.getBoundingClientRect();
+  cv.width=rect.width||280;cv.height=rect.height||130;
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(!history||!history.length)return;
+  var pL=32,pR=8,pT=8,pB=36;
+  var cW=cv.width-pL-pR,cH=cv.height-pT-pB;
+  var maxV=0;
+  history.forEach(function(yr){yr.months.forEach(function(v){if(v>maxV)maxV=v;});});
+  if(maxV===0)return;
+  maxV=Math.ceil(maxV/5000000)*5000000;
+  var colors=['#484f58','#58a6ff','#7ee787','#d29922','#00e8c4'];
+  var months=D?D.months.map(function(m){return m.name;}):['Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'];
+  // Grid lines
+  ctx.strokeStyle='#21262d';ctx.lineWidth=0.5;
+  for(var g=0;g<=4;g++){
+    var gy=pT+cH-(g/4)*cH;
+    ctx.beginPath();ctx.moveTo(pL,gy);ctx.lineTo(pL+cW,gy);ctx.stroke();
+    ctx.fillStyle='#484f58';ctx.font='9px Segoe UI';ctx.textAlign='right';
+    ctx.fillText(fm(maxV*g/4),pL-2,gy+3);
+  }
+  // Lines
+  history.forEach(function(yr,yi){
+    ctx.beginPath();
+    ctx.strokeStyle=colors[yi%colors.length];
+    ctx.lineWidth=yi===history.length-1?2.5:1.2;
+    var started=false;
+    yr.months.forEach(function(v,mi){
+      var x=pL+(mi/11)*cW,y=pT+cH-(v/maxV)*cH;
+      if(v===0){started=false;return;}
+      if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}
+    });
+    ctx.stroke();
+  });
+  // X axis labels
+  months.forEach(function(m,i){
+    var x=pL+(i/11)*cW;
+    ctx.fillStyle='#7d8590';ctx.font='8px Segoe UI';ctx.textAlign='center';
+    ctx.fillText(m,x,cv.height-pB+12);
+  });
+  // Legend
+  var lx=pL,ly=cv.height-8;
+  history.forEach(function(yr,yi){
+    ctx.fillStyle=colors[yi%colors.length];
+    ctx.fillRect(lx,ly-6,16,4);
+    ctx.fillStyle='#7d8590';ctx.font='8px Segoe UI';ctx.textAlign='left';
+    ctx.fillText(yr.label,lx+19,ly);
+    lx+=ctx.measureText(yr.label).width+30;
+  });
 }
-function dcls(p){
-  if(p<=0)return'n';if(p>=90)return'g';if(p>=70)return'a';return'r';
+
+function rotate(){
+  rotIdx=(rotIdx+1)%2;
+  document.getElementById('rv0').classList.toggle('active',rotIdx===0);
+  document.getElementById('rv1').classList.toggle('active',rotIdx===1);
+  document.getElementById('rd0').classList.toggle('active',rotIdx===0);
+  document.getElementById('rd1').classList.toggle('active',rotIdx===1);
+  if(rotIdx===0&&D)setTimeout(function(){drawGauge(D.all_time_settlements);},900);
+  if(rotIdx===1&&D)setTimeout(function(){drawChart(D.history);},900);
 }
-function upd(d){
+
+function update(d){
+  D=d;
   document.getElementById('lu').innerHTML='Updated: '+d.last_updated+'<span class="rp"></span>';
-  var tb=document.getElementById('tb');
-  tb.innerHTML='';
+
+  // Performance table
+  var tb=document.getElementById('tb');tb.innerHTML='';
   d.months.forEach(function(m){
-    if(m.is_empty&&!m.is_current)return;
     var tr=document.createElement('tr');
     if(m.is_current)tr.className='cur';
+    else if(m.is_empty&&!m.is_past)tr.className='fut';
+    var lodgStr=m.deals_lodged>0?(m.deals_lodged+' / '+fm(m.lodgements)):(m.is_empty?'&mdash;':'&mdash;');
+    var settStr=m.deals_settled>0?(m.deals_settled+' / '+fm(m.settlements)):(m.is_empty?'&mdash;':'&mdash;');
     var vs='&mdash;';
-    if(m.settlements>0&&m.target>0)
+    if(m.is_past&&m.settlements>0&&m.target>0)
       vs='<span class="dot '+dcls(m.pct_of_target)+'"></span>'+m.pct_of_target.toFixed(1)+'%';
-    tr.innerHTML='<td>'+m.name+'</td>'+
-      '<td>'+(m.lodgements>0?fm(m.lodgements):'&mdash;')+'</td>'+
-      '<td>'+(m.settlements>0?fm(m.settlements):'&mdash;')+'</td>'+
-      '<td>'+vs+'</td>';
+    tr.innerHTML='<td>'+m.name+'</td><td>'+lodgStr+'</td><td>'+settStr+'</td><td>'+vs+'</td>';
     tb.appendChild(tr);
   });
-  document.getElementById('t-name').textContent=d.current_month;
-  document.getElementById('t-amt').textContent=d.current_month_settlements>0?fm(d.current_month_settlements):'$0';
-  document.getElementById('t-tgt').textContent='of '+fm(d.current_month_target)+' target';
+
+  // Month in Focus
+  document.getElementById('f-month').textContent=d.current_month;
+  document.getElementById('f-bc').textContent=d.bc_total||'&mdash;';
+  document.getElementById('f-lo').textContent=d.lo_total||'&mdash;';
+  var lodgeStr=d.current_month_deals_lodged>0?
+    (d.current_month_deals_lodged+' / '+fm(d.current_month_lodgements)):'&mdash;';
+  var settStr2=d.current_month_deals_settled>0?
+    (d.current_month_deals_settled+' / '+fm(d.current_month_settlements)):'$0';
+  document.getElementById('f-lodge').innerHTML=lodgeStr;
+  document.getElementById('f-sett').innerHTML=settStr2;
   var mp=d.current_month_target>0?(d.current_month_settlements/d.current_month_target*100):0;
-  var pe=document.getElementById('t-pct');
-  pe.textContent=mp.toFixed(1)+'%';pe.style.color=col(mp);
-  var bf=document.getElementById('t-bar');
-  bf.style.width=Math.min(mp,100)+'%';bf.style.background=col(mp);
-  document.getElementById('t-days').textContent=d.days_remaining+' days remaining in '+d.current_month;
-  var pac=document.getElementById('t-pace');
-  pac.textContent=d.pace_status;
-  pac.className='tm-pace';
+  var pe=document.getElementById('f-pct');pe.textContent=mp.toFixed(1)+'%';pe.style.color=col(mp);
+  var bf=document.getElementById('f-bar');bf.style.width=Math.min(mp,100)+'%';bf.style.background=col(mp);
+  document.getElementById('f-days').textContent=d.days_remaining+' days remaining — '+
+    'target: '+fm(d.current_month_target);
+  var pac=document.getElementById('f-pace');pac.textContent=d.pace_status;pac.className='f-pace';
   if(d.pace_status==='On Track')pac.classList.add('p-on');
   else if(d.pace_status==='Slightly Behind')pac.classList.add('p-sl');
   else if(d.pace_status==='Behind')pac.classList.add('p-be');
   else pac.classList.add('p-ea');
+
+  // Leave
+  document.getElementById('leave-title').textContent=d.leave_title||'Leave';
+  var ll=document.getElementById('leave-list');ll.innerHTML='';
+  if(d.leave&&d.leave.length){
+    d.leave.forEach(function(e){
+      var div=document.createElement('div');div.className='leave-entry';
+      div.innerHTML='<div class="leave-name">'+e.name+'</div><div class="leave-dates">'+e.dates+'</div>';
+      ll.appendChild(div);
+    });
+  }else{
+    ll.innerHTML='<div class="no-leave">No leave scheduled</div>';
+  }
+
+  // YTD
   var yp=d.ytd_settlements/ANN*100;
   document.getElementById('y-num').textContent=fm(d.ytd_settlements);
   document.getElementById('y-pct').textContent=yp.toFixed(1)+'% of $330M target';
@@ -173,14 +310,25 @@ function upd(d){
   document.getElementById('y-proj').textContent=d.projection?fm(d.projection):'&mdash;';
   document.getElementById('y-rem').textContent=fm(Math.max(0,ANN-d.ytd_settlements));
   document.getElementById('y-lodge').textContent=fm(d.ytd_lodgements);
+
+  // Rotating views
+  if(rotIdx===0)drawGauge(d.all_time_settlements);
+  else drawChart(d.history);
 }
+
 function go(){
-  var x=new XMLHttpRequest();
-  x.open('GET',GIST+'?t='+Date.now(),true);
-  x.onload=function(){if(x.status===200){try{upd(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
+  var x=new XMLHttpRequest();x.open('GET',GIST+'?t='+Date.now(),true);
+  x.onload=function(){if(x.status===200){try{update(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
   x.send();
 }
-go();setInterval(go,60000);
-</script>
-</body>
-</html>
+
+window.addEventListener('resize',function(){
+  if(!D)return;
+  if(rotIdx===0)drawGauge(D.all_time_settlements);
+  else drawChart(D.history);
+});
+
+go();
+setInterval(go,60000);
+setInterval(rotate,300000);
+</script></body></html>
