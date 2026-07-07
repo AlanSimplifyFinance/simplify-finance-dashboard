@@ -82,7 +82,7 @@ tr.fut td:first-child{color:#2d333b}
 .rot-view.active{opacity:1;pointer-events:auto}
 .rot-title{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;
            margin-bottom:6px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
-canvas{flex:1;width:100%}
+canvas{flex:1;width:100%;min-height:0;display:block}
 .rot-indicator{display:flex;gap:7px;justify-content:center;position:absolute;bottom:8px;left:0;right:0}
 .rot-dot{width:7px;height:7px;border-radius:50%;background:#2d333b;transition:background .3s}
 .rot-dot.active{background:#00e8c4}
@@ -182,10 +182,22 @@ function fm(n){if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n
 function col(p){if(p<=0)return'#484f58';if(p>=100)return'#3fb950';if(p>=75)return'#d29922';return'#f85149';}
 function dcls(p){if(p<=0)return'n';if(p>=100)return'g';if(p>=75)return'a';return'r';}
 
+function cvSize(cv){
+  // Size canvas from parent panel, not from getBoundingClientRect (avoids stale/zero values)
+  var pv=cv.parentElement;
+  var titleEl=pv.querySelector('.rot-title');
+  var titleH=titleEl?titleEl.offsetHeight+10:36;
+  var cs=window.getComputedStyle(pv);
+  var pH=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+  var pW=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
+  var w=Math.max(pv.clientWidth-pW,100);
+  var h=Math.max(pv.clientHeight-pH-titleH,100);
+  cv.width=w; cv.height=h;
+  cv.style.width=w+'px'; cv.style.height=h+'px';
+}
 function drawGauge(allTime){
   var cv=document.getElementById('gauge-canvas');
-  var rect=cv.getBoundingClientRect();
-  cv.width=rect.width||280;cv.height=rect.height||160;
+  cvSize(cv);
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   var cx=cv.width/2,cy=cv.height*0.72,r=Math.min(cx,cy)*0.8;
@@ -214,8 +226,7 @@ function drawGauge(allTime){
 
 function drawChart(history){
   var cv=document.getElementById('chart-canvas');
-  var rect=cv.getBoundingClientRect();
-  cv.width=rect.width||280;cv.height=rect.height||200;
+  cvSize(cv);
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   if(!history||!history.length)return;
