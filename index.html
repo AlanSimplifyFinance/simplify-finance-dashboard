@@ -3,7 +3,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;height:100vh;overflow:hidden}
-.db{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:4fr 1.5fr;
+.db{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:3fr 2fr;
     grid-template-areas:"perf focus leave""ytd rot vis";gap:9px;padding:9px;height:100vh}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;
      overflow:hidden;display:flex;flex-direction:column}
@@ -13,11 +13,12 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-seri
         margin-bottom:7px;border-bottom:1px solid #21262d;padding-bottom:5px;flex-shrink:0}
 /* Table */
 table{width:100%;border-collapse:collapse}
-th{color:#7d8590;font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;
-   padding:4px 8px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
+th{color:#7d8590;font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;
+   padding:3px 6px;text-align:right;border-bottom:1px solid #30363d;white-space:nowrap}
 th:first-child{text-align:left}
-td{padding:4px 8px;text-align:right;font-size:.85rem;border-bottom:1px solid #1a1f26;white-space:nowrap}
-td:first-child{text-align:left;color:#8b949e;font-size:.85rem}
+th.grp{text-align:center;color:#484f58;font-size:.58rem;border-bottom:1px solid #484f58;padding-bottom:2px}
+td{padding:3px 6px;text-align:right;font-size:.78rem;border-bottom:1px solid #1a1f26;white-space:nowrap}
+td:first-child{text-align:left;color:#8b949e;font-size:.78rem}
 tr.cur td{background:rgba(0,232,196,.09);color:#00e8c4;font-weight:700}
 tr.cur td:first-child{color:#00e8c4}
 tr.fut td{color:#484f58}
@@ -34,6 +35,8 @@ tr.fut td:first-child{color:#343b44}
 .f-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px}
 .f-label{font-size:.75rem;color:#7d8590}
 .f-val{font-size:.85rem;color:#e6edf3;font-weight:600}
+.f-grid{display:grid;grid-template-columns:1fr auto auto;gap:2px 14px;align-items:baseline;margin-bottom:2px}
+.f-col-hdr{font-size:.6rem;color:#484f58;text-transform:uppercase;text-align:right}
 .f-pct{font-size:1.8rem;font-weight:900;line-height:1;margin:6px 0}
 .f-bar{height:6px;background:#21262d;border-radius:3px;margin:4px 0}
 .f-bar-fill{height:100%;border-radius:3px;transition:width .6s}
@@ -44,9 +47,9 @@ tr.fut td:first-child{color:#343b44}
 .p-be{background:rgba(248,81,73,.15);color:#f85149;border:1px solid #f85149}
 .p-ea{background:rgba(125,133,144,.15);color:#7d8590;border:1px solid #484f58}
 /* Leave */
-.leave-entry{margin-bottom:7px}
+.leave-entry{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
 .leave-name{font-size:.82rem;color:#e6edf3;font-weight:600}
-.leave-dates{font-size:.72rem;color:#7d8590}
+.leave-dates{font-size:.72rem;color:#7d8590;text-align:right}
 .no-leave{font-size:.8rem;color:#484f58;font-style:italic;margin-top:8px}
 /* YTD */
 .ytd-h{font-size:.62rem;color:#7d8590;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
@@ -77,9 +80,15 @@ canvas{flex:1;width:100%}
   <!-- Performance Table -->
   <div class="pnl" id="pp">
     <div class="ptitle" id="perf-title">Financial Year 2027 Performance</div>
-    <table><thead><tr>
-      <th>Month</th><th>Lodg.</th><th>Settled</th><th>vs Target</th>
-    </tr></thead><tbody id="tb"></tbody></table>
+    <table><thead>
+      <tr>
+        <th rowspan="2">Month</th>
+        <th colspan="2" class="grp">Lodgements</th>
+        <th colspan="2" class="grp">Settlements</th>
+        <th rowspan="2" style="text-align:center">Settlement<br>to Target</th>
+      </tr>
+      <tr><th>#</th><th>$</th><th>#</th><th>$</th></tr>
+    </thead><tbody id="tb"></tbody></table>
     <div class="lupd" id="lu">&mdash;</div>
   </div>
 
@@ -91,8 +100,11 @@ canvas{flex:1;width:100%}
     <div class="f-row"><span class="f-label">Borrowing Capacities</span><span class="f-val" id="f-bc">&mdash;</span></div>
     <div class="f-row"><span class="f-label">Lending Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
     <div class="f-section">This Month</div>
-    <div class="f-row"><span class="f-label">Lodged</span><span class="f-val" id="f-lodge">&mdash;</span></div>
-    <div class="f-row"><span class="f-label">Settled</span><span class="f-val" id="f-sett">&mdash;</span></div>
+    <div class="f-grid">
+      <span></span><span class="f-col-hdr">#</span><span class="f-col-hdr">$</span>
+      <span class="f-label">Lodged</span><span class="f-val" id="f-ld-n">&mdash;</span><span class="f-val" id="f-ld-d">&mdash;</span>
+      <span class="f-label">Settled</span><span class="f-val" id="f-st-n">&mdash;</span><span class="f-val" id="f-st-d">&mdash;</span>
+    </div>
     <div class="f-section">Settlement Pace</div>
     <div class="f-pct" id="f-pct">&mdash;</div>
     <div class="f-bar"><div class="f-bar-fill" id="f-bar" style="width:0"></div></div>
@@ -117,7 +129,6 @@ canvas{flex:1;width:100%}
     <div class="ytd-stats">
       <div class="ytd-stat"><label>Projected Year-End</label><span id="y-proj">&mdash;</span></div>
       <div class="ytd-stat"><label>Remaining</label><span id="y-rem">$330M</span></div>
-      <div class="ytd-stat"><label>Lodgements YTD</label><span id="y-lodge">$0</span></div>
     </div>
   </div>
 
@@ -253,36 +264,38 @@ function update(d){
   D=d;
   document.getElementById('lu').innerHTML='Updated: '+d.last_updated+'<span class="rp"></span>';
 
-  // Performance table
+  // Performance table — 6 columns: Month | Lodg.# | Lodg.$ | Sett.# | Sett.$ | Settlement to Target
   var tb=document.getElementById('tb');tb.innerHTML='';
   d.months.forEach(function(m){
     var tr=document.createElement('tr');
     if(m.is_current)tr.className='cur';
     else if(m.is_empty&&!m.is_past)tr.className='fut';
-    var lodgStr=m.deals_lodged>0?(m.deals_lodged+' / '+fm(m.lodgements)):(m.is_empty?'&mdash;':'&mdash;');
-    var settStr=m.deals_settled>0?(m.deals_settled+' / '+fm(m.settlements)):(m.is_empty?'&mdash;':'&mdash;');
+    var ldN=m.deals_lodged>0?m.deals_lodged:'&mdash;';
+    var ldD=m.lodgements>0?fm(m.lodgements):'&mdash;';
+    var stN=m.deals_settled>0?m.deals_settled:'&mdash;';
+    var stD=m.settlements>0?fm(m.settlements):'&mdash;';
     var vs='&mdash;';
     if(m.is_past&&m.settlements>0&&m.target>0)
       vs='<span class="dot '+dcls(m.pct_of_target)+'"></span>'+m.pct_of_target.toFixed(1)+'%';
-    tr.innerHTML='<td>'+m.name+'</td><td>'+lodgStr+'</td><td>'+settStr+'</td><td>'+vs+'</td>';
+    tr.innerHTML='<td>'+m.name+'</td><td>'+ldN+'</td><td>'+ldD+'</td><td>'+stN+'</td><td>'+stD+'</td><td style="text-align:center">'+vs+'</td>';
     tb.appendChild(tr);
   });
 
   // Month in Focus
-  document.getElementById('f-month').textContent=d.current_month;
-  document.getElementById('f-bc').textContent=d.bc_total||'&mdash;';
-  document.getElementById('f-lo').textContent=d.lo_total||'&mdash;';
-  var lodgeStr=d.current_month_deals_lodged>0?
-    (d.current_month_deals_lodged+' / '+fm(d.current_month_lodgements)):'&mdash;';
-  var settStr2=d.current_month_deals_settled>0?
-    (d.current_month_deals_settled+' / '+fm(d.current_month_settlements)):'$0';
-  document.getElementById('f-lodge').innerHTML=lodgeStr;
-  document.getElementById('f-sett').innerHTML=settStr2;
-  var mp=d.current_month_target>0?(d.current_month_settlements/d.current_month_target*100):0;
-  var pe=document.getElementById('f-pct');pe.textContent=mp.toFixed(1)+'%';pe.style.color=col(mp);
-  var bf=document.getElementById('f-bar');bf.style.width=Math.min(mp,100)+'%';bf.style.background=col(mp);
-  document.getElementById('f-days').textContent=d.days_remaining+' days remaining — '+
-    'target: '+fm(d.current_month_target);
+  document.getElementById('f-month').textContent=d.current_month_full||d.current_month;
+  document.getElementById('f-bc').textContent=d.bc_total||0;
+  document.getElementById('f-lo').textContent=d.lo_total||0;
+  // Lodged/Settled split into # and $
+  document.getElementById('f-ld-n').textContent=d.current_month_deals_lodged||0;
+  document.getElementById('f-ld-d').textContent=d.current_month_lodgements>0?fm(d.current_month_lodgements):'—';
+  document.getElementById('f-st-n').textContent=d.current_month_deals_settled||0;
+  document.getElementById('f-st-d').textContent=d.current_month_settlements>0?fm(d.current_month_settlements):'—';
+  // Settlement pace — business-days MTD basis
+  var pp=d.pace_pct||0;
+  var pe=document.getElementById('f-pct');pe.textContent=pp.toFixed(1)+'%';pe.style.color=col(pp);
+  var bf=document.getElementById('f-bar');bf.style.width=Math.min(pp,100)+'%';bf.style.background=col(pp);
+  var bizTxt=(d.biz_days_elapsed||0)+' of '+(d.biz_days_total||0)+' business days — MTD target: '+fm(d.mtd_target||0);
+  document.getElementById('f-days').textContent=bizTxt;
   var pac=document.getElementById('f-pace');pac.textContent=d.pace_status;pac.className='f-pace';
   if(d.pace_status==='On Track')pac.classList.add('p-on');
   else if(d.pace_status==='Slightly Behind')pac.classList.add('p-sl');
@@ -295,7 +308,7 @@ function update(d){
   if(d.leave&&d.leave.length){
     d.leave.forEach(function(e){
       var div=document.createElement('div');div.className='leave-entry';
-      div.innerHTML='<div class="leave-name">'+e.name+'</div><div class="leave-dates">'+e.dates+'</div>';
+      div.innerHTML='<span class="leave-name">'+e.name+'</span><span class="leave-dates">'+e.dates+'</span>';
       ll.appendChild(div);
     });
   }else{
@@ -307,9 +320,8 @@ function update(d){
   document.getElementById('y-num').textContent=fm(d.ytd_settlements);
   document.getElementById('y-pct').textContent=yp.toFixed(1)+'% of $330M target';
   document.getElementById('y-bar').style.width=Math.min(yp,100)+'%';
-  document.getElementById('y-proj').textContent=d.projection?fm(d.projection):'&mdash;';
+  document.getElementById('y-proj').innerHTML=d.projection?fm(d.projection):'&mdash;';
   document.getElementById('y-rem').textContent=fm(Math.max(0,ANN-d.ytd_settlements));
-  document.getElementById('y-lodge').textContent=fm(d.ytd_lodgements);
 
   // Rotating views
   if(rotIdx===0)drawGauge(d.all_time_settlements);
@@ -330,5 +342,5 @@ window.addEventListener('resize',function(){
 
 go();
 setInterval(go,60000);
-setInterval(rotate,300000);
+setInterval(rotate,60000);
 </script></body></html>
