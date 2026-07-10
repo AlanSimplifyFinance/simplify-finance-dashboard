@@ -157,9 +157,14 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <div class="rot-title">5 Year Settlement History</div>
       <canvas id="chart-canvas"></canvas>
     </div>
+    <div class="rot-view" id="rv2">
+      <div class="rot-title">FY2026 Lender Mix</div>
+      <canvas id="donut-canvas"></canvas>
+    </div>
     <div class="rot-indicator">
       <div class="rot-dot active" id="rd0"></div>
       <div class="rot-dot" id="rd1"></div>
+      <div class="rot-dot" id="rd2"></div>
     </div>
   </div>
 
@@ -284,14 +289,78 @@ function drawChart(history){
   });
 }
 
+function drawDonut(lenders){
+  var cv=document.getElementById('donut-canvas');
+  if(!cv||!lenders||!lenders.length)return;
+  cvSize(cv);
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341'];
+  var total=lenders.reduce(function(s,l){return s+l.amount;},0);
+  if(total<=0)return;
+  var fs=Math.max(11,Math.round(cv.width*0.028));
+  var legRows=Math.ceil(lenders.length/2);
+  var legH=legRows*Math.round(fs*1.8)+fs;
+  var donutH=cv.height-legH-8;
+  var cx=cv.width/2;
+  var r=Math.min(cx*0.85,donutH/2*0.88);
+  var cy=donutH/2+4;
+  var startAngle=-Math.PI/2;
+  // Segments
+  lenders.forEach(function(l,i){
+    var sweep=l.amount/total*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,startAngle,startAngle+sweep);
+    ctx.closePath();
+    ctx.fillStyle=colors[i%colors.length];
+    ctx.globalAlpha=1;
+    ctx.fill();
+    startAngle+=sweep;
+  });
+  // Inner cutout
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.52,0,Math.PI*2);
+  ctx.fillStyle='#161b22';
+  ctx.fill();
+  // Centre: total
+  ctx.textAlign='center';
+  ctx.fillStyle='#7d8590';
+  ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';
+  ctx.fillText('FY26 Total',cx,cy-Math.round(fs*0.6));
+  ctx.fillStyle='#f0f6fc';
+  ctx.font='bold '+Math.round(fs*1.35)+'px Inter,sans-serif';
+  ctx.fillText(fm(total),cx,cy+Math.round(fs*0.65));
+  // Legend — 2 columns
+  var ly=donutH+fs*0.5;
+  var swW=Math.round(fs*0.75),swH=Math.round(fs*0.65),gap=5;
+  var colW=Math.floor(cv.width/2);
+  ctx.font=Math.round(fs*0.85)+'px Inter,sans-serif';
+  lenders.forEach(function(l,i){
+    var ci=i%2, ri=Math.floor(i/2);
+    var lx=ci*colW+8;
+    var lly=ly+ri*Math.round(fs*1.8);
+    var pct=(l.amount/total*100).toFixed(1)+'%';
+    ctx.fillStyle=colors[i%colors.length];
+    ctx.globalAlpha=1;
+    ctx.fillRect(lx,lly,swW,swH);
+    ctx.fillStyle='#c9d1d9';
+    ctx.textAlign='left';
+    ctx.fillText(l.name+'  '+pct,lx+swW+gap,lly+swH);
+  });
+}
+
 function rotate(){
-  rotIdx=(rotIdx+1)%2;
+  rotIdx=(rotIdx+1)%3;
   document.getElementById('rv0').classList.toggle('active',rotIdx===0);
   document.getElementById('rv1').classList.toggle('active',rotIdx===1);
+  document.getElementById('rv2').classList.toggle('active',rotIdx===2);
   document.getElementById('rd0').classList.toggle('active',rotIdx===0);
   document.getElementById('rd1').classList.toggle('active',rotIdx===1);
+  document.getElementById('rd2').classList.toggle('active',rotIdx===2);
   if(rotIdx===0&&D)setTimeout(function(){drawGauge(D.all_time_settlements);},900);
   if(rotIdx===1&&D)setTimeout(function(){drawChart(D.history);},900);
+  if(rotIdx===2&&D)setTimeout(function(){drawDonut(D.lender_mix);},900);
 }
 
 function update(d){
@@ -359,7 +428,8 @@ function update(d){
 
   // Rotating views
   if(rotIdx===0)drawGauge(d.all_time_settlements);
-  else drawChart(d.history);
+  else if(rotIdx===1)drawChart(d.history);
+  else drawDonut(d.lender_mix);
 }
 
 function go(){
@@ -371,7 +441,8 @@ function go(){
 window.addEventListener('resize',function(){
   if(!D)return;
   if(rotIdx===0)drawGauge(D.all_time_settlements);
-  else drawChart(D.history);
+  else if(rotIdx===1)drawChart(D.history);
+  else drawDonut(D.lender_mix);
 });
 
 // Fullscreen — click, Enter, Space, F, or F11 on TV remote
