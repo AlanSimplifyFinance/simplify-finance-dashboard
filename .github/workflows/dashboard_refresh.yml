@@ -1,0 +1,24 @@
+name: Dashboard Refresh
+on:
+  schedule:
+    - cron: '0,30 22,23,0,1,2,3,4,5,6,7 * * 0-5'
+  workflow_dispatch:
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install pandas requests openpyxl
+      - name: Run dashboard refresh
+        env:
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          GH_TOKEN:            ${{ secrets.GH_TOKEN }}
+          GIST_ID:             ${{ secrets.GIST_ID }}
+          PAGES_REPO:          ${{ secrets.PAGES_REPO }}
+        run: python generate_dashboard.py
