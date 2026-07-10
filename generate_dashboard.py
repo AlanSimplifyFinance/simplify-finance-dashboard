@@ -4,6 +4,8 @@
 import io, os, json, hashlib, base64, calendar, tempfile
 import pandas as pd, requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
+SYDNEY = ZoneInfo('Australia/Sydney')
 from pathlib import Path
 
 # ── Config ──────────────────────────────────────────────────────────────────────
@@ -253,7 +255,7 @@ def read_lender_mix(path):
 
 # ── Build payload ──────────────────────────────────────────────────────────────
 def build_data(month_data, bc, lo, leave, leave_title, all_time, history, lender_mix=None):
-    now            = datetime.now()
+    now            = datetime.now(SYDNEY)
     cur_month      = now.strftime('%b')
     days_in_month  = calendar.monthrange(now.year, now.month)[1]
     day_of_month   = now.day
@@ -348,7 +350,7 @@ def deploy_html(html, cfg):
     url = f'https://api.github.com/repos/{cfg["repo"]}/contents/index.html'
     resp = requests.get(url,headers=h,timeout=30)
     sha = resp.json().get('sha') if resp.status_code==200 else None
-    pl = {'message':f'Dashboard FY27 {datetime.now().strftime("%Y-%m-%d %H:%M")}',
+    pl = {'message':f'Dashboard FY27 {datetime.now(SYDNEY).strftime("%Y-%m-%d %H:%M")}',
           'content':base64.b64encode(html.encode()).decode()}
     if sha: pl['sha']=sha
     r = requests.put(url,headers=h,json=pl,timeout=30)
@@ -824,7 +826,7 @@ setInterval(rotate,60000);
 
 # ── Main ────────────────────────────────────────────────────────────────────────
 def main():
-    print(f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] Simplify Finance Dashboard — FY2026-27')
+    print(f'[{datetime.now(SYDNEY).strftime("%Y-%m-%d %H:%M:%S")} AEST] Simplify Finance Dashboard — FY2026-27')
     cloud = is_cloud()
 
     # ── Config ──────────────────────────────────────────────────────────────────
@@ -870,7 +872,7 @@ def main():
     except Exception as e:
         print(f'  ✗ History: {e}'); all_time, history = 0, []
 
-    now = datetime.now()
+    now = datetime.now(SYDNEY)
     cur_short = now.strftime('%b')
     cur_full  = now.strftime('%B')
 
