@@ -175,8 +175,8 @@ def read_credit_team(path, cur_short):
     try:
         df = pd.read_excel(path, sheet_name='CreditTeam', header=None)
     except Exception:
-        return 0, 0
-    total_bc = total_lo = 0
+        return 0, 0, 0
+    total_bc = total_lo = total_cp = 0
     in_month = False
     for i in range(1, len(df)):  # skip row 0 (title row)
         row = df.iloc[i]
@@ -188,13 +188,12 @@ def read_credit_team(path, cur_short):
         nm = norm_month(cell)
         if nm:
             in_month = (nm == cur_short)
-        # Count BC/LO for all rows in the current month section (including NaN-month rows)
+        # Count BC/LO/CP for all rows in the current month section
         if in_month:
-            bc = safe_num(row.iloc[2])
-            lo = safe_num(row.iloc[3])
-            total_bc += int(bc)
-            total_lo += int(lo)
-    return total_bc, total_lo
+            total_bc += int(safe_num(row.iloc[2]))
+            total_lo += int(safe_num(row.iloc[3]))
+            total_cp += int(safe_num(row.iloc[4]) if len(row) > 4 else 0)
+    return total_bc, total_lo, total_cp
 
 # ── Leave data ─────────────────────────────────────────────────────────────────
 def read_leave(path, cur_month_full):
@@ -253,8 +252,57 @@ def read_lender_mix(path):
     lenders.sort(key=lambda x: x['amount'], reverse=True)
     return lenders
 
+# ── Lead Pipeline ─────────────────────────────────────────────────────────────
+def read_lead_pipeline(path):
+    """Read Lead Pipeline sheet. Row 0 = headers, rows 1+ = weekly data.
+       Columns: Week Commencing, BC, Waiting Customer, LO, Compliance, Total Leads"""
+    try:
+        df = pd.read_excel(path, sheet_name='Lead Pipeline', header=None)
+    except Exception:
+        return []
+    rows = []
+    for i in range(1, len(df)):
+        row = df.iloc[i]
+        week = row.iloc[0]
+        if pd.isna(week): continue
+        bc   = int(safe_num(row.iloc[1]))
+        wait = int(safe_num(row.iloc[2]))
+        lo   = int(safe_num(row.iloc[3]))
+        comp = int(safe_num(row.iloc[4]))
+        tot  = int(safe_num(row.iloc[5]))
+        if tot == 0 and bc == 0 and lo == 0: continue
+        label = pd.to_datetime(week).strftime('%-d %b') if not isinstance(week, str) else str(week)
+        rows.append({'week': label, 'bc': bc, 'waiting': wait, 'lo': lo, 'compliance': comp, 'total': tot})
+    return rows
+
+# ── Lodgement Pipeline ─────────────────────────────────────────────────────────
+def read_lodgement_pipeline(path):
+    """Read Lodgement Pipeline sheet. Row 0 = headers, rows 1+ = weekly data.
+       Columns: Week Commencing, Lodged, OA, Pre-Approved, Formal, Contracts, Settlement Booked, Total"""
+    try:
+        df = pd.read_excel(path, sheet_name='Lodgement Pipeline', header=None)
+    except Exception:
+        return []
+    rows = []
+    for i in range(1, len(df)):
+        row = df.iloc[i]
+        week = row.iloc[0]
+        if pd.isna(week): continue
+        lodged  = round(safe_num(row.iloc[1]))
+        oa      = round(safe_num(row.iloc[2]))
+        preapp  = round(safe_num(row.iloc[3]))
+        formal  = round(safe_num(row.iloc[4]))
+        contr   = round(safe_num(row.iloc[5]))
+        setbook = round(safe_num(row.iloc[6]))
+        total   = round(safe_num(row.iloc[7]))
+        if total == 0: continue
+        label = pd.to_datetime(week).strftime('%-d %b') if not isinstance(week, str) else str(week)
+        rows.append({'week': label, 'lodged': lodged, 'oa': oa, 'pre_approved': preapp,
+                     'formal': formal, 'contracts': contr, 'settlement_booked': setbook, 'total': total})
+    return rows
+
 # ── Build payload ──────────────────────────────────────────────────────────────
-def build_data(month_data, bc, lo, leave, leave_title, all_time, history, lender_mix=None):
+def build_data(month_data, bc, lo, cp, leave, leave_title, all_time, history, lender_mix=None, lead_pipeline=None, lodgement_pipeline=None):
     now            = datetime.now(SYDNEY)
     cur_month      = now.strftime('%b')
     days_in_month  = calendar.monthrange(now.year, now.month)[1]
@@ -326,11 +374,13 @@ def build_data(month_data, bc, lo, leave, leave_title, all_time, history, lender
         'current_month_deals_lodged': cur_ld_n, 'current_month_deals_settled': cur_st_n,
         'current_month_target': cur_target,
         'pace_pct': pace_pct, 'pace_status': pace,
-        'bc_total': bc, 'lo_total': lo,
+        'bc_total': bc, 'lo_total': lo, 'cp_total': cp,
         'leave': leave, 'leave_title': leave_title,
         'all_time_settlements': all_time,
         'history': history,
         'lender_mix': lender_mix or [],
+        'lead_pipeline': lead_pipeline or [],
+        'lodgement_pipeline': lodgement_pipeline or [],
         'last_updated': now.strftime('%d %b %Y %-I:%M %p'),
     }
 
@@ -474,7 +524,8 @@ canvas{flex:1;width:100%;min-height:0;display:block}
     <div class="f-month" id="f-month">&mdash;</div>
     <div class="f-section">Pipeline</div>
     <div class="f-row"><span class="f-label">Borrowing Capacities</span><span class="f-val" id="f-bc">&mdash;</span></div>
-    <div class="f-row"><span class="f-label">Lending Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Loan Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Compliance Prep</span><span class="f-val" id="f-cp">&mdash;</span></div>
     <div class="f-section">This Month</div>
     <div class="f-grid">
       <span></span><span class="f-col-hdr">#</span><span class="f-col-hdr">$</span>
@@ -522,10 +573,20 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <div class="rot-title">FY2026 Lender Mix</div>
       <canvas id="donut-canvas"></canvas>
     </div>
+    <div class="rot-view" id="rv3">
+      <div class="rot-title">Lead Pipeline</div>
+      <canvas id="lead-canvas"></canvas>
+    </div>
+    <div class="rot-view" id="rv4">
+      <div class="rot-title">Lodgement Pipeline</div>
+      <canvas id="lodge-canvas"></canvas>
+    </div>
     <div class="rot-indicator">
       <div class="rot-dot active" id="rd0"></div>
       <div class="rot-dot" id="rd1"></div>
       <div class="rot-dot" id="rd2"></div>
+      <div class="rot-dot" id="rd3"></div>
+      <div class="rot-dot" id="rd4"></div>
     </div>
   </div>
 
@@ -711,17 +772,119 @@ function drawDonut(lenders){
   });
 }
 
+function drawLeadPipeline(rows){
+  var cv=document.getElementById('lead-canvas');
+  if(!cv||!rows||!rows.length)return;
+  cvSize(cv);
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  var colors=['#00e8c4','#00b4d8','#d29922','#a371f7'];
+  var keys=['bc','lo','compliance','waiting'];
+  var labels=['BC','LO','Compliance','Waiting'];
+  var fs=Math.max(10,Math.round(cv.width*0.03));
+  var legH=fs*1.8;
+  var padL=Math.round(cv.width*0.08),padR=12,padT=8,padB=Math.round(legH+fs*0.5);
+  var W=cv.width-padL-padR,H=cv.height-padT-padB;
+  var maxVal=Math.max.apply(null,rows.map(function(r){return r.total;}));
+  if(maxVal<=0)return;
+  var bw=Math.floor(W/rows.length*0.65),gap=Math.floor(W/rows.length*0.35);
+  // Axes
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,padT);ctx.lineTo(padL,padT+H);ctx.lineTo(padL+W,padT+H);ctx.stroke();
+  // Bars (stacked)
+  rows.forEach(function(r,i){
+    var x=padL+i*(bw+gap)+gap/2;
+    var base=padT+H;
+    keys.forEach(function(k,ki){
+      var val=r[k]||0;
+      var bh=Math.round(val/maxVal*H);
+      if(bh<=0)return;
+      ctx.fillStyle=colors[ki];
+      ctx.fillRect(x,base-bh,bw,bh);
+      base-=bh;
+    });
+    // Week label
+    ctx.fillStyle='#8b949e';ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';
+    ctx.textAlign='center';
+    ctx.fillText(r.week,x+bw/2,padT+H+fs*1.1);
+    // Total on top
+    ctx.fillStyle='#c9d1d9';ctx.font='bold '+Math.round(fs*0.85)+'px Inter,sans-serif';
+    ctx.fillText(r.total,x+bw/2,base-4);
+  });
+  // Legend
+  var lx=padL,ly=cv.height-fs*0.8;
+  labels.forEach(function(lb,i){
+    ctx.fillStyle=colors[i];ctx.fillRect(lx,ly-fs*0.7,Math.round(fs*0.75),Math.round(fs*0.65));
+    ctx.fillStyle='#c9d1d9';ctx.font=Math.round(fs*0.8)+'px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(lb,lx+Math.round(fs*0.75)+4,ly);
+    lx+=ctx.measureText(lb).width+Math.round(fs*1.5)+8;
+  });
+}
+
+function drawLodgementPipeline(rows){
+  var cv=document.getElementById('lodge-canvas');
+  if(!cv||!rows||!rows.length)return;
+  cvSize(cv);
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,cv.width,cv.height);
+  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7'];
+  var keys=['lodged','oa','pre_approved','formal','contracts','settlement_booked'];
+  var labels=['Lodged','OA','Pre-Appr','Formal','Contracts','Sett. Bkd'];
+  var fs=Math.max(10,Math.round(cv.width*0.03));
+  var legH=fs*1.8;
+  var padL=Math.round(cv.width*0.1),padR=12,padT=8,padB=Math.round(legH+fs*0.5);
+  var W=cv.width-padL-padR,H=cv.height-padT-padB;
+  var maxVal=Math.max.apply(null,rows.map(function(r){return r.total;}));
+  if(maxVal<=0)return;
+  var bw=Math.floor(W/rows.length*0.65),gap=Math.floor(W/rows.length*0.35);
+  function fmM(v){return v>=1000000?'$'+(v/1000000).toFixed(1)+'M':v>=1000?'$'+(v/1000).toFixed(0)+'K':'$'+v;}
+  // Y-axis labels
+  ctx.fillStyle='#8b949e';ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';ctx.textAlign='right';
+  [0,0.25,0.5,0.75,1].forEach(function(f){
+    var y=padT+H-Math.round(f*H);
+    ctx.fillText(fmM(Math.round(maxVal*f)),padL-4,y+fs*0.3);
+    ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+W,y);ctx.stroke();
+  });
+  // Bars (stacked)
+  rows.forEach(function(r,i){
+    var x=padL+i*(bw+gap)+gap/2;
+    var base=padT+H;
+    keys.forEach(function(k,ki){
+      var val=r[k]||0;
+      var bh=Math.round(val/maxVal*H);
+      if(bh<=0)return;
+      ctx.fillStyle=colors[ki];
+      ctx.fillRect(x,base-bh,bw,bh);
+      base-=bh;
+    });
+    ctx.fillStyle='#8b949e';ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(r.week,x+bw/2,padT+H+fs*1.1);
+    ctx.fillStyle='#c9d1d9';ctx.font='bold '+Math.round(fs*0.82)+'px Inter,sans-serif';
+    ctx.fillText(fmM(r.total),x+bw/2,base-4);
+  });
+  // Legend (2 rows if needed)
+  var lx=padL,ly=cv.height-fs*0.8;
+  labels.forEach(function(lb,i){
+    ctx.fillStyle=colors[i];ctx.fillRect(lx,ly-fs*0.7,Math.round(fs*0.75),Math.round(fs*0.65));
+    ctx.fillStyle='#c9d1d9';ctx.font=Math.round(fs*0.8)+'px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(lb,lx+Math.round(fs*0.75)+4,ly);
+    lx+=ctx.measureText(lb).width+Math.round(fs*1.8)+8;
+    if(i===2){lx=padL;ly-=fs*1.4;}
+  });
+}
+
 function rotate(){
-  rotIdx=(rotIdx+1)%3;
-  document.getElementById('rv0').classList.toggle('active',rotIdx===0);
-  document.getElementById('rv1').classList.toggle('active',rotIdx===1);
-  document.getElementById('rv2').classList.toggle('active',rotIdx===2);
-  document.getElementById('rd0').classList.toggle('active',rotIdx===0);
-  document.getElementById('rd1').classList.toggle('active',rotIdx===1);
-  document.getElementById('rd2').classList.toggle('active',rotIdx===2);
+  rotIdx=(rotIdx+1)%5;
+  for(var i=0;i<5;i++){
+    document.getElementById('rv'+i).classList.toggle('active',rotIdx===i);
+    document.getElementById('rd'+i).classList.toggle('active',rotIdx===i);
+  }
   if(rotIdx===0&&D)setTimeout(function(){drawGauge(D.all_time_settlements);},900);
   if(rotIdx===1&&D)setTimeout(function(){drawChart(D.history);},900);
   if(rotIdx===2&&D)setTimeout(function(){drawDonut(D.lender_mix);},900);
+  if(rotIdx===3&&D)setTimeout(function(){drawLeadPipeline(D.lead_pipeline);},900);
+  if(rotIdx===4&&D)setTimeout(function(){drawLodgementPipeline(D.lodgement_pipeline);},900);
 }
 
 function update(d){
@@ -749,6 +912,7 @@ function update(d){
   document.getElementById('f-month').textContent=d.current_month_full||d.current_month;
   document.getElementById('f-bc').textContent=d.bc_total||0;
   document.getElementById('f-lo').textContent=d.lo_total||0;
+  document.getElementById('f-cp').textContent=d.cp_total||0;
   // Lodged/Settled split into # and $
   document.getElementById('f-ld-n').textContent=d.current_month_deals_lodged||0;
   document.getElementById('f-ld-d').textContent=d.current_month_lodgements>0?fm(d.current_month_lodgements):'—';
@@ -790,7 +954,9 @@ function update(d){
   // Rotating views
   if(rotIdx===0)drawGauge(d.all_time_settlements);
   else if(rotIdx===1)drawChart(d.history);
-  else drawDonut(d.lender_mix);
+  else if(rotIdx===2)drawDonut(d.lender_mix);
+  else if(rotIdx===3)drawLeadPipeline(d.lead_pipeline);
+  else drawLodgementPipeline(d.lodgement_pipeline);
 }
 
 function go(){
@@ -803,7 +969,9 @@ window.addEventListener('resize',function(){
   if(!D)return;
   if(rotIdx===0)drawGauge(D.all_time_settlements);
   else if(rotIdx===1)drawChart(D.history);
-  else drawDonut(D.lender_mix);
+  else if(rotIdx===2)drawDonut(D.lender_mix);
+  else if(rotIdx===3)drawLeadPipeline(D.lead_pipeline);
+  else drawLodgementPipeline(D.lodgement_pipeline);
 });
 
 // Fullscreen — click, Enter, Space, F, or F11 on TV remote
@@ -876,8 +1044,8 @@ def main():
     cur_short = now.strftime('%b')
     cur_full  = now.strftime('%B')
 
-    bc, lo = read_credit_team(path, cur_short)
-    print(f'  ✓ BCs: {bc} | LOs: {lo}')
+    bc, lo, cp = read_credit_team(path, cur_short)
+    print(f'  ✓ BCs: {bc} | LOs: {lo} | CPs: {cp}')
 
     leave, leave_title = read_leave(path, cur_full)
     print(f'  ✓ Leave entries: {len(leave)} ({leave_title})')
@@ -885,7 +1053,13 @@ def main():
     lender_mix = read_lender_mix(path)
     print(f'  ✓ Lender mix: {len(lender_mix)} lenders')
 
-    data = build_data(month_data, bc, lo, leave, leave_title, all_time, history, lender_mix)
+    lead_pipeline = read_lead_pipeline(path)
+    print(f'  ✓ Lead pipeline: {len(lead_pipeline)} weeks')
+
+    lodgement_pipeline = read_lodgement_pipeline(path)
+    print(f'  ✓ Lodgement pipeline: {len(lodgement_pipeline)} weeks')
+
+    data = build_data(month_data, bc, lo, cp, leave, leave_title, all_time, history, lender_mix, lead_pipeline, lodgement_pipeline)
     print(f'  ✓ YTD: ${data["ytd_settlements"]:,.0f} | Pace: {data["pace_status"]}')
 
     try:
