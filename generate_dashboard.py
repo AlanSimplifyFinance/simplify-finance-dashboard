@@ -772,72 +772,75 @@ function drawDonut(lenders){
   });
 }
 
-function drawStackedBar(cv,rows,keys,labels,colors,fmVal){
+function drawStackedBar(cv,rows,keys,labels,colors,fmVal,stepSize){
   cvSize(cv);
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
   var fs=Math.max(9,Math.round(cv.width*0.027));
   var sw=Math.round(fs*0.7),sh=Math.round(fs*0.6),gap2=4;
-  // Legend at top — measure to fit in one row
+  // Legend at top — wrap into rows as needed
   ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';
-  var legItems=labels.map(function(lb,i){
-    return {lb:lb,w:sw+gap2+ctx.measureText(lb).width+10};
-  });
-  var legRowH=sh+4;
-  var legRows=[[]],rowW=0;
+  var legItems=labels.map(function(lb,i){return{lb:lb,w:sw+gap2+ctx.measureText(lb).width+10};});
+  var legRowH=sh+5,legRows=[[]],rowW=0;
   legItems.forEach(function(it){
     if(rowW+it.w>cv.width-8&&legRows[legRows.length-1].length>0){legRows.push([]);rowW=0;}
     legRows[legRows.length-1].push(it);rowW+=it.w;
   });
-  var legTotalH=legRows.length*legRowH+4;
-  var padL=Math.round(cv.width*0.09),padR=8,padT=legTotalH,padB=Math.round(fs*1.5);
+  var legTotalH=legRows.length*legRowH+6;
+  var padL=Math.round(cv.width*0.11),padR=8,padT=legTotalH,padB=Math.round(fs*1.6);
   var W=cv.width-padL-padR,H=cv.height-padT-padB;
-  var maxVal=Math.max.apply(null,rows.map(function(r){
+  // Compute axis max as next step multiple above data max
+  var dataMax=Math.max.apply(null,rows.map(function(r){
     return keys.reduce(function(s,k){return s+(r[k]||0);},0);
   }));
-  if(maxVal<=0)return;
-  var slot=W/rows.length,bw=Math.round(slot*0.6),bgap=Math.round((slot-bw)/2);
-  // Draw legend rows
-  var ly=sh+2;
+  if(dataMax<=0)return;
+  var axisMax=Math.ceil(dataMax/stepSize)*stepSize;
+  var numSteps=axisMax/stepSize;
+  var slot=W/rows.length,bw=Math.round(slot*0.58),bgap=Math.round((slot-bw)/2);
+  // Draw legend
+  var ly=sh+3;
   legRows.forEach(function(row){
     var lx=padL;
-    row.forEach(function(it,i){
+    row.forEach(function(it){
       var gi=labels.indexOf(it.lb);
-      ctx.fillStyle=colors[gi%colors.length];
-      ctx.fillRect(lx,ly-sh+1,sw,sh);
-      ctx.fillStyle='#c9d1d9';ctx.textAlign='left';
-      ctx.fillText(it.lb,lx+sw+gap2,ly);
-      lx+=it.w;
+      ctx.fillStyle=colors[gi%colors.length];ctx.fillRect(lx,ly-sh+1,sw,sh);
+      ctx.fillStyle='#c9d1d9';ctx.textAlign='left';ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';
+      ctx.fillText(it.lb,lx+sw+gap2,ly);lx+=it.w;
     });
     ly+=legRowH;
   });
-  // Y-axis grid lines
+  // Y-axis grid lines at each step
   ctx.font=Math.round(fs*0.72)+'px Inter,sans-serif';ctx.textAlign='right';
-  [0,0.5,1].forEach(function(f){
-    var y=padT+H-Math.round(f*H);
-    ctx.fillStyle='#8b949e';
-    ctx.fillText(fmVal(Math.round(maxVal*f)),padL-3,y+fs*0.3);
-    ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  for(var si=0;si<=numSteps;si++){
+    var yv=si*stepSize;
+    var y=padT+H-Math.round(yv/axisMax*H);
+    ctx.fillStyle='#8b949e';ctx.fillText(fmVal(yv),padL-3,y+fs*0.3);
+    ctx.strokeStyle=si===0?'#30363d':'#21262d';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+W,y);ctx.stroke();
-  });
-  // Stacked bars
+  }
+  // Stacked bars with in-segment labels
+  var segFs=Math.max(8,Math.round(fs*0.75));
   rows.forEach(function(r,i){
     var x=padL+i*slot+bgap;
     var base=padT+H;
     keys.forEach(function(k,ki){
       var val=r[k]||0;
-      var bh=Math.round(val/maxVal*H);
-      if(bh<=0)return;
+      if(val<=0)return;
+      var bh=Math.round(val/axisMax*H);
       ctx.fillStyle=colors[ki%colors.length];
       ctx.fillRect(x,base-bh,bw,bh);
+      // Show value inside segment if tall enough
+      var minH=segFs+4;
+      if(bh>=minH){
+        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.font='bold '+segFs+'px Inter,sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText(fmVal(val),x+bw/2,base-bh/2+segFs*0.35);
+      }
       base-=bh;
     });
-    // Week label below bar
+    // Week label below
     ctx.fillStyle='#8b949e';ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';ctx.textAlign='center';
-    ctx.fillText(r.week,x+bw/2,padT+H+fs*1.15);
-    // Total above bar
-    ctx.fillStyle='#e6edf3';ctx.font='bold '+Math.round(fs*0.82)+'px Inter,sans-serif';
-    ctx.fillText(fmVal(keys.reduce(function(s,k){return s+(r[k]||0);},0)),x+bw/2,base-3);
+    ctx.fillText(r.week,x+bw/2,padT+H+fs*1.2);
   });
 }
 
@@ -848,19 +851,21 @@ function drawLeadPipeline(rows){
     ['bc','lo','compliance','waiting'],
     ['BC','LO','Compliance','Waiting'],
     ['#00e8c4','#00b4d8','#d29922','#a371f7'],
-    function(v){return v;}
+    function(v){return String(v);},
+    10
   );
 }
 
 function drawLodgementPipeline(rows){
   var cv=document.getElementById('lodge-canvas');
   if(!cv||!rows||!rows.length)return;
-  function fmM(v){return v>=1000000?'$'+(v/1000000).toFixed(1)+'M':v>=1000?'$'+(v/1000).toFixed(0)+'K':'$'+v;}
+  function fmM(v){return v>=1000000?'$'+(v/1000000).toFixed(0)+'M':v>=1000?'$'+(v/1000).toFixed(0)+'K':'$'+v;}
   drawStackedBar(cv,rows,
     ['lodged','oa','pre_approved','formal','contracts','settlement_booked'],
     ['Lodged','OA','Pre-Appr','Formal','Contracts','Sett Bkd'],
     ['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7'],
-    fmM
+    fmM,
+    10000000
   );
 }
 
