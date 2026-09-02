@@ -154,19 +154,30 @@ def build_data(df):
             'total': tot_mon,
         })
 
-    # ── 3-year history (monthly settlement $ by channel) ─────────────────
-    hist_start = pd.Period(f'{now.year - 2}-{now.month:02d}', freq='M') - 35
-    history = []
-    for i in range(36):
-        p = hist_start + i
-        row = {'month': p.strftime('%b %y')}
-        for ch in CHANNELS:
-            ch_df = df[(df['Channel'] == ch) &
-                       (df['Settlement Date'].dt.to_period('M') == p) &
-                       (df['Status'] == 'Settled')]
-            row[CH_SHORT[ch]] = round(float(ch_df['Loan Amount'].sum()))
-        row['total'] = sum(row[CH_SHORT[ch]] for ch in CHANNELS)
-        history.append(row)
+    # ── FY settlement history (total $ per month, one series per FY) ────
+    # Data starts Aug 2023 (FY24). Include all FYs up to current.
+    data_start_fy  = 2023   # Jul 2023 = FY24 start
+    cur_fy_start   = now.year if now.month >= 7 else now.year - 1
+    fy_palette     = ['#484f58', '#3fb950', '#00b4d8', '#00e8c4']  # oldest → newest
+    fy_years       = list(range(data_start_fy, cur_fy_start + 1))
+    fy_series      = []
+    for idx, fy_yr in enumerate(fy_years):
+        fy_label = f'FY{(fy_yr + 1) % 100:02d}'
+        color    = fy_palette[min(idx, len(fy_palette) - 1)]
+        # Always use the last colour for the current FY regardless of count
+        if fy_yr == cur_fy_start:
+            color = fy_palette[-1]
+        values = []
+        for i in range(12):          # 0=Jul … 5=Dec, 6=Jan … 11=Jun
+            mo = i + 7 if i < 6 else i - 5
+            yr = fy_yr if i < 6 else fy_yr + 1
+            p  = pd.Period(f'{yr}-{mo:02d}', freq='M')
+            sett = df[(df['Settlement Date'].dt.to_period('M') == p) &
+                      (df['Status'] == 'Settled')]
+            values.append(round(float(sett['Loan Amount'].sum())))
+        fy_series.append({'fy': fy_label, 'color': color,
+                          'is_current': fy_yr == cur_fy_start, 'values': values})
+    history = {'months': FY_MONTHS, 'series': fy_series}
 
     return {
         'current_month': cur_month_full,
@@ -363,7 +374,7 @@ function update(d){
 
 function drawChart(history){
   var cv=document.getElementById('hist-canvas');
-  if(!cv||!history||!history.length)return;
+  if(!cv||!history||!history.series||!history.series.length)return;
   var dpr=window.devicePixelRatio||1;
   var rect=cv.getBoundingClientRect();
   cv.width=Math.round(rect.width*dpr);
@@ -373,11 +384,16 @@ function drawChart(history){
   var W=rect.width,H=rect.height;
   ctx.clearRect(0,0,W,H);
 
+  var months=history.months;
+  var series=history.series;
   var fs=Math.max(9,Math.round(W*0.022));
-  var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(fs*1.6);
+  var legH=Math.round(fs*1.5);
+  var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(fs*1.4+legH);
   var cW=W-padL-padR,cH=H-padT-padB;
 
-  var maxVal=Math.max.apply(null,history.map(function(r){return r.total||0;}));
+  // Max across all series
+  var maxVal=0;
+  series.forEach(function(s){s.values.forEach(function(v){if(v>maxVal)maxVal=v;});});
   if(maxVal<=0)return;
   var step=Math.pow(10,Math.floor(Math.log10(maxVal)));
   if(maxVal/step>5)step*=2;
@@ -392,31 +408,40 @@ function drawChart(history){
     ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
   }
 
-  // X-axis labels (every 3 months)
-  var slotW=cW/history.length;
+  // X-axis month labels (Jul through Jun)
+  var slotW=cW/months.length;
   ctx.fillStyle='#8b949e';ctx.textAlign='center';ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';
-  history.forEach(function(r,i){
-    if(i%3===0){
+  months.forEach(function(m,i){
+    ctx.fillText(m,padL+i*slotW+slotW/2,padT+cH+fs*1.2);
+  });
+
+  // One line per FY — older years thinner/dimmer
+  series.forEach(function(s){
+    var isCur=s.is_current;
+    ctx.beginPath();
+    ctx.strokeStyle=s.color;
+    ctx.lineWidth=isCur?2.5:1.5;
+    ctx.lineJoin='round';
+    ctx.globalAlpha=isCur?1:0.65;
+    s.values.forEach(function(v,i){
       var x=padL+i*slotW+slotW/2;
-      ctx.fillText(r.month,x,padT+cH+fs*1.2);
-    }
+      var y=padT+cH-Math.round(v/axMax*cH);
+      if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
+    });
+    ctx.stroke();
+    ctx.globalAlpha=1;
   });
 
-  // Single total settlements line
-  ctx.beginPath();ctx.strokeStyle='#00e8c4';ctx.lineWidth=2.5;ctx.lineJoin='round';
-  history.forEach(function(r,i){
-    var x=padL+i*slotW+slotW/2;
-    var y=padT+cH-Math.round((r.total||0)/axMax*cH);
-    if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
+  // Legend
+  ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';ctx.textAlign='left';
+  var lx=padL,ly=H-Math.round(fs*0.3);
+  series.forEach(function(s){
+    ctx.fillStyle=s.color;
+    ctx.fillRect(lx,ly-Math.round(fs*0.75),Math.round(fs*0.75),Math.round(fs*0.6));
+    ctx.fillStyle='#c9d1d9';
+    ctx.fillText(s.fy,lx+Math.round(fs*0.75)+4,ly);
+    lx+=ctx.measureText(s.fy).width+Math.round(fs*1.8)+8;
   });
-  ctx.stroke();
-
-  // Dot on last data point
-  var last=history[history.length-1];
-  var lx=padL+(history.length-1)*slotW+slotW/2;
-  var ly=padT+cH-Math.round((last.total||0)/axMax*cH);
-  ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fillStyle='#00e8c4';ctx.fill();
-
 }
 
 function go(){
