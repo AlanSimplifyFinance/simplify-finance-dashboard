@@ -193,18 +193,20 @@ function drawChart(history){
     ctx.fillText(m,padL+i*slotW+slotW/2,padT+cH+fs*1.2);
   });
 
-  // One line per FY — older years thinner/dimmer
+  // One line per FY — older years thinner/dimmer, nulls break the line
   series.forEach(function(s){
     var isCur=s.is_current;
     ctx.beginPath();
     ctx.strokeStyle=s.color;
-    ctx.lineWidth=isCur?2.5:1.5;
+    ctx.lineWidth=isCur?3.5:2.5;
     ctx.lineJoin='round';
     ctx.globalAlpha=isCur?1:0.65;
+    var started=false;
     s.values.forEach(function(v,i){
+      if(v===null||v===undefined){started=false;return;}
       var x=padL+i*slotW+slotW/2;
       var y=padT+cH-Math.round(v/axMax*cH);
-      if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
+      if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}
     });
     ctx.stroke();
     ctx.globalAlpha=1;
