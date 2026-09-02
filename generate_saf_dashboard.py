@@ -172,9 +172,13 @@ def build_data(df):
             mo = i + 7 if i < 6 else i - 5
             yr = fy_yr if i < 6 else fy_yr + 1
             p  = pd.Period(f'{yr}-{mo:02d}', freq='M')
-            sett = df[(df['Settlement Date'].dt.to_period('M') == p) &
-                      (df['Status'] == 'Settled')]
-            values.append(round(float(sett['Loan Amount'].sum())))
+            # For current FY: null out current month and beyond (only show completed months)
+            if fy_yr == cur_fy_start and p >= cur_period:
+                values.append(None)
+            else:
+                sett = df[(df['Settlement Date'].dt.to_period('M') == p) &
+                          (df['Status'] == 'Settled')]
+                values.append(round(float(sett['Loan Amount'].sum())))
         fy_series.append({'fy': fy_label, 'color': color,
                           'is_current': fy_yr == cur_fy_start, 'values': values})
     history = {'months': FY_MONTHS, 'series': fy_series}
@@ -415,18 +419,20 @@ function drawChart(history){
     ctx.fillText(m,padL+i*slotW+slotW/2,padT+cH+fs*1.2);
   });
 
-  // One line per FY — older years thinner/dimmer
+  // One line per FY — older years thinner/dimmer, nulls break the line
   series.forEach(function(s){
     var isCur=s.is_current;
     ctx.beginPath();
     ctx.strokeStyle=s.color;
-    ctx.lineWidth=isCur?2.5:1.5;
+    ctx.lineWidth=isCur?3.5:2.5;
     ctx.lineJoin='round';
     ctx.globalAlpha=isCur?1:0.65;
+    var started=false;
     s.values.forEach(function(v,i){
+      if(v===null||v===undefined){started=false;return;}
       var x=padL+i*slotW+slotW/2;
       var y=padT+cH-Math.round(v/axMax*cH);
-      if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
+      if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}
     });
     ctx.stroke();
     ctx.globalAlpha=1;
