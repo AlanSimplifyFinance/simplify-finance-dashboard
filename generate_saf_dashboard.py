@@ -241,19 +241,19 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-seri
 .main{display:grid;grid-template-columns:1fr 1.7fr;grid-template-rows:auto 1fr;
       gap:12px;padding:12px;flex:1;min-height:0}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;
-     padding:12px;overflow:hidden;display:flex;flex-direction:column}
-.ptitle{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+     padding:10px;overflow:hidden;display:flex;flex-direction:column}
+.ptitle{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
 /* Tables */
-table{width:100%;border-collapse:collapse;font-size:.65rem}
-th{font-size:.54rem;color:#7d8590;text-transform:uppercase;letter-spacing:.06em;
-   padding:2px 5px;text-align:right;border-bottom:1px solid #30363d}
+table{width:100%;border-collapse:collapse;font-size:.63rem}
+th{font-size:.52rem;color:#7d8590;text-transform:uppercase;letter-spacing:.06em;
+   padding:1px 4px;text-align:right;border-bottom:1px solid #30363d}
 th:first-child{text-align:left}
-td{padding:1px 5px;text-align:right;color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
+td{padding:0px 4px;line-height:1.55;text-align:right;color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
 td:first-child{text-align:left}
 tr.month-sep td{border-top:2px solid #21262d}
 tr.cur-month td{background:rgba(0,232,196,.06)}
 tr.future td{color:#484f58}
-tr.ch-total td{color:#e6edf3;font-weight:600;background:#1a1f26}
+tr.ch-total td{color:#00e8c4;font-weight:800;font-size:.66rem;background:#1a2230;border-top:1px solid #21262d}
 tr.grand-total td{color:#00e8c4;font-weight:700;border-top:1px solid #30363d;background:#1c2128}
 .ch-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
 .num{color:#f0f6fc;font-weight:700}
@@ -453,13 +453,24 @@ function go(){
   x.send();
 }
 
+var inFullscreen=false;
 function goFullScreen(){
   var el=document.documentElement;
   if     (el.requestFullscreen)       el.requestFullscreen();
   else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
   else if(el.mozRequestFullScreen)    el.mozRequestFullScreen();
   else if(el.msRequestFullscreen)     el.msRequestFullscreen();
+  inFullscreen=true;
 }
+function onFsChange(){
+  var isFs=!!(document.fullscreenElement||document.webkitFullscreenElement||
+              document.mozFullScreenElement||document.msFullscreenElement);
+  if(inFullscreen&&!isFs){setTimeout(goFullScreen,800);}
+}
+document.addEventListener('fullscreenchange',onFsChange);
+document.addEventListener('webkitfullscreenchange',onFsChange);
+document.addEventListener('mozfullscreenchange',onFsChange);
+document.addEventListener('MSFullscreenChange',onFsChange);
 window.addEventListener('load',function(){setTimeout(goFullScreen,500);});
 document.addEventListener('click',goFullScreen);
 window.addEventListener('resize',function(){if(D)drawChart(D.history);});
