@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Simplify Asset Finance | Dashboard</title>
+<meta http-equiv="refresh" content="60">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
+     height:100vh;overflow:hidden;display:flex;flex-direction:column}
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;
+     padding:10px 20px;border-bottom:1px solid #30363d;flex-shrink:0}
+.hdr-title{font-size:1.1rem;font-weight:700;color:#00e8c4;letter-spacing:.04em}
+.hdr-month{font-size:.85rem;color:#8b949e}
+.hdr-updated{font-size:.72rem;color:#484f58}
+/* Main grid */
+.main{display:grid;grid-template-columns:1fr 1.7fr;grid-template-rows:auto 1fr;
+      gap:12px;padding:12px;flex:1;min-height:0}
+.pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;
+     padding:12px;overflow:hidden;display:flex;flex-direction:column}
+.ptitle{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:.72rem}
+th{font-size:.58rem;color:#7d8590;text-transform:uppercase;letter-spacing:.06em;
+   padding:3px 6px;text-align:right;border-bottom:1px solid #30363d}
+th:first-child{text-align:left}
+td{padding:3px 6px;text-align:right;color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
+td:first-child{text-align:left}
+tr.month-sep td{border-top:2px solid #21262d}
+tr.cur-month td{background:rgba(0,232,196,.06)}
+tr.future td{color:#484f58}
+tr.ch-total td{color:#e6edf3;font-weight:600;background:#1a1f26}
+tr.grand-total td{color:#00e8c4;font-weight:700;border-top:1px solid #30363d;background:#1c2128}
+.ch-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+.num{color:#f0f6fc;font-weight:700}
+.val{color:#58a6ff}
+.dim{color:#484f58}
+/* Chart panel */
+#chart-pnl{grid-column:2;grid-row:1/3}
+canvas{width:100%;height:100%}
+</style>
+</head><body>
+<div class="hdr">
+  <div class="hdr-title">Simplify Asset Finance &mdash; Pipeline Dashboard</div>
+  <div class="hdr-month" id="hdr-month">&mdash;</div>
+  <div class="hdr-updated" id="hdr-updated">Loading&hellip;</div>
+</div>
+<div class="main">
+  <!-- Current month -->
+  <div class="pnl" id="pnl-cur">
+    <div class="ptitle" id="cur-title">Current Month</div>
+    <table>
+      <thead><tr>
+        <th>Channel</th>
+        <th>Enq</th>
+        <th>Sub #</th><th>Sub $</th>
+        <th>Sett #</th><th>Sett $</th>
+      </tr></thead>
+      <tbody id="cur-body"></tbody>
+    </table>
+  </div>
+  <!-- Full year table -->
+  <div class="pnl" id="pnl-year">
+    <div class="ptitle">FY2026&ndash;27 Monthly Breakdown</div>
+    <div style="overflow-y:auto;flex:1">
+    <table>
+      <thead><tr>
+        <th>Month</th><th>Channel</th>
+        <th>Enq</th>
+        <th>Sub #</th><th>Sub $</th>
+        <th>Sett #</th><th>Sett $</th>
+      </tr></thead>
+      <tbody id="year-body"></tbody>
+    </table>
+    </div>
+  </div>
+  <!-- Chart -->
+  <div class="pnl" id="chart-pnl">
+    <div class="ptitle">3-Year Settlement History (Monthly $)</div>
+    <canvas id="hist-canvas"></canvas>
+  </div>
+</div>
+
+<script>
+var GIST='https://gist.githubusercontent.com/AlanSimplifyFinance/0cd274630345682b58a55d2164ebbc2f/raw/saf_dashboard_data.json';
+var D=null;
+
+function fm(v){
+  if(v>=1000000)return'$'+(v/1000000).toFixed(1)+'M';
+  if(v>=1000)return'$'+(v/1000).toFixed(0)+'K';
+  return'$'+v;
+}
+function fn(v){return v>0?v:'—';}
+
+function update(d){
+  D=d;
+  document.getElementById('hdr-month').textContent=d.current_month||'';
+  document.getElementById('hdr-updated').textContent='Updated: '+d.last_updated;
+
+  // Current month table
+  var cb=document.getElementById('cur-body');cb.innerHTML='';
+  d.current_channels.forEach(function(ch){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td><span class="ch-dot" style="background:'+ch.color+'"></span>'+ch.short+'</td>'+
+      '<td class="num">'+fn(ch.enq_n)+'</td>'+
+      '<td class="num">'+fn(ch.sub_n)+'</td><td class="val">'+(ch.sub_val>0?fm(ch.sub_val):'—')+'</td>'+
+      '<td class="num">'+fn(ch.sett_n)+'</td><td class="val">'+(ch.sett_val>0?fm(ch.sett_val):'—')+'</td>';
+    cb.appendChild(tr);
+  });
+  var t=d.current_total;
+  var tot=document.createElement('tr');tot.className='grand-total';
+  tot.innerHTML='<td>Total</td>'+
+    '<td class="num">'+fn(t.enq_n)+'</td>'+
+    '<td class="num">'+fn(t.sub_n)+'</td><td class="val">'+(t.sub_val>0?fm(t.sub_val):'—')+'</td>'+
+    '<td class="num">'+fn(t.sett_n)+'</td><td class="val">'+(t.sett_val>0?fm(t.sett_val):'—')+'</td>';
+  cb.appendChild(tot);
+
+  // Full year table
+  var yb=document.getElementById('year-body');yb.innerHTML='';
+  d.monthly.forEach(function(mon,mi){
+    mon.channels.forEach(function(ch,ci){
+      var tr=document.createElement('tr');
+      var cls=mon.is_future?'future':(mon.is_current?'cur-month':'');
+      if(ci===0&&mi>0)cls+=' month-sep';
+      tr.className=cls.trim();
+      var monthCell=ci===0?'<td rowspan="3" style="vertical-align:middle;color:'+(mon.is_current?'#00e8c4':'#c9d1d9')+';font-weight:'+(mon.is_current?700:400)+'">'+mon.month+'</td>':'';
+      tr.innerHTML=monthCell+
+        '<td><span class="ch-dot" style="background:'+ch.color+'"></span>'+ch.short+'</td>'+
+        '<td>'+(ch.enq_n>0?ch.enq_n:'<span class="dim">—</span>')+'</td>'+
+        '<td>'+(ch.sub_n>0?ch.sub_n:'<span class="dim">—</span>')+'</td>'+
+        '<td class="val">'+(ch.sub_val>0?fm(ch.sub_val):'<span class="dim">—</span>')+'</td>'+
+        '<td>'+(ch.sett_n>0?ch.sett_n:'<span class="dim">—</span>')+'</td>'+
+        '<td class="val">'+(ch.sett_val>0?fm(ch.sett_val):'<span class="dim">—</span>')+'</td>';
+      yb.appendChild(tr);
+    });
+  });
+
+  drawChart(d.history);
+}
+
+function drawChart(history){
+  var cv=document.getElementById('hist-canvas');
+  if(!cv||!history||!history.length)return;
+  var dpr=window.devicePixelRatio||1;
+  var rect=cv.getBoundingClientRect();
+  cv.width=Math.round(rect.width*dpr);
+  cv.height=Math.round(rect.height*dpr);
+  var ctx=cv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  var W=rect.width,H=rect.height;
+  ctx.clearRect(0,0,W,H);
+
+  var colors={'SAF':'#00e8c4','SAB':'#00b4d8','Roam':'#3fb950'};
+  var keys=['SAF','SAB','Roam'];
+  var labels=['Simplify AF','Simplify AB','Roam Finance'];
+  var fs=Math.max(9,Math.round(W*0.022));
+  var legH=fs*1.6;
+  var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(legH+fs*1.4);
+  var cW=W-padL-padR,cH=H-padT-padB;
+
+  var maxVal=Math.max.apply(null,history.map(function(r){return r.total||0;}));
+  if(maxVal<=0)return;
+  var step=Math.pow(10,Math.floor(Math.log10(maxVal)));
+  if(maxVal/step>5)step*=2;
+  var axMax=Math.ceil(maxVal/step)*step;
+
+  // Y-axis
+  ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#8b949e';
+  for(var v=0;v<=axMax;v+=step){
+    var y=padT+cH-Math.round(v/axMax*cH);
+    ctx.fillText(fm(v),padL-3,y+fs*0.3);
+    ctx.strokeStyle=v===0?'#30363d':'#1a1f26';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+  }
+
+  // X-axis labels (every 3 months)
+  var slotW=cW/history.length;
+  ctx.fillStyle='#8b949e';ctx.textAlign='center';ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';
+  history.forEach(function(r,i){
+    if(i%3===0){
+      var x=padL+i*slotW+slotW/2;
+      ctx.fillText(r.month,x,padT+cH+fs*1.2);
+    }
+  });
+
+  // Lines per channel (stacked area-style, drawn as lines for clarity)
+  keys.forEach(function(k){
+    ctx.beginPath();ctx.strokeStyle=colors[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
+    var first=true;
+    history.forEach(function(r,i){
+      var x=padL+i*slotW+slotW/2;
+      var y=padT+cH-Math.round((r[k]||0)/axMax*cH);
+      if(first){ctx.moveTo(x,y);first=false;}else{ctx.lineTo(x,y);}
+    });
+    ctx.stroke();
+  });
+
+  // Legend
+  var lx=padL,ly=H-fs*0.4;
+  keys.forEach(function(k,i){
+    ctx.fillStyle=colors[k];
+    ctx.fillRect(lx,ly-fs*0.75,Math.round(fs*0.75),Math.round(fs*0.6));
+    ctx.fillStyle='#c9d1d9';ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';ctx.textAlign='left';
+    ctx.fillText(labels[i],lx+Math.round(fs*0.75)+4,ly);
+    lx+=ctx.measureText(labels[i]).width+Math.round(fs*1.8)+8;
+  });
+}
+
+function go(){
+  var x=new XMLHttpRequest();x.open('GET',GIST+'?t='+Date.now(),true);
+  x.onload=function(){if(x.status===200){try{update(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
+  x.send();
+}
+
+window.addEventListener('resize',function(){if(D)drawChart(D.history);});
+go();
+setInterval(go,60000);
+</script>
+</body></html>
