@@ -167,7 +167,8 @@ def build_data(df):
         # Always use the last colour for the current FY regardless of count
         if fy_yr == cur_fy_start:
             color = fy_palette[-1]
-        values = []
+        values, saf_values = [], []
+        saf_df = df[df['Channel'] == 'Simplify Asset Finance']
         for i in range(12):          # 0=Jul … 5=Dec, 6=Jan … 11=Jun
             mo = i + 7 if i < 6 else i - 5
             yr = fy_yr if i < 6 else fy_yr + 1
@@ -175,12 +176,17 @@ def build_data(df):
             # For current FY: null out current month and beyond (only show completed months)
             if fy_yr == cur_fy_start and p >= cur_period:
                 values.append(None)
+                saf_values.append(None)
             else:
                 sett = df[(df['Settlement Date'].dt.to_period('M') == p) &
                           (df['Status'] == 'Settled')]
                 values.append(round(float(sett['Loan Amount'].sum())))
+                saf_sett = saf_df[(saf_df['Settlement Date'].dt.to_period('M') == p) &
+                                  (saf_df['Status'] == 'Settled')]
+                saf_values.append(round(float(saf_sett['Loan Amount'].sum())))
         fy_series.append({'fy': fy_label, 'color': color,
-                          'is_current': fy_yr == cur_fy_start, 'values': values})
+                          'is_current': fy_yr == cur_fy_start,
+                          'values': values, 'saf_values': saf_values})
     history = {'months': FY_MONTHS, 'series': fy_series}
 
     return {
@@ -238,7 +244,7 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-seri
 .hdr-month{font-size:.85rem;color:#8b949e}
 .hdr-updated{font-size:.72rem;color:#484f58}
 /* Main grid */
-.main{display:grid;grid-template-columns:1fr 1.7fr;grid-template-rows:auto 1fr;
+.main{display:grid;grid-template-columns:1fr 1.7fr;grid-template-rows:1fr 1fr;
       gap:12px;padding:12px;flex:1;min-height:0}
 .pnl{background:#161b22;border:1px solid #30363d;border-radius:10px;
      padding:10px;overflow:hidden;display:flex;flex-direction:column}
@@ -262,6 +268,13 @@ tr.grand-total td{color:#00e8c4;font-weight:700;border-top:1px solid #30363d;bac
 /* Panel placement */
 #pnl-year{grid-column:1;grid-row:1/3}
 canvas{width:100%;height:100%}
+/* Chart rotation */
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0}
+.rdots{display:flex;gap:5px}
+.rdot{width:6px;height:6px;border-radius:50%;background:#30363d;cursor:pointer}
+.rdot.active{background:#00e8c4}
+.chart-view{flex:1;min-height:0;display:none}
+.chart-view.active{display:flex;flex-direction:column}
 </style>
 </head><body>
 <div class="hdr">
@@ -296,10 +309,14 @@ canvas{width:100%;height:100%}
       <tbody id="cur-body"></tbody>
     </table>
   </div>
-  <!-- Chart — right column, bottom -->
+  <!-- Chart — right column, bottom (rotating) -->
   <div class="pnl" id="chart-pnl">
-    <div class="ptitle">3-Year Settlement History (Monthly $)</div>
-    <canvas id="hist-canvas"></canvas>
+    <div class="chart-hdr">
+      <div class="ptitle" id="chart-title">Total Settlements by Month</div>
+      <div class="rdots"><span class="rdot active" id="cd0"></span><span class="rdot" id="cd1"></span></div>
+    </div>
+    <div class="chart-view active" id="cv0"><canvas id="total-canvas"></canvas></div>
+    <div class="chart-view" id="cv1"><canvas id="saf-canvas"></canvas></div>
   </div>
 </div>
 
@@ -370,11 +387,31 @@ function update(d){
     yb.appendChild(tot);
   });
 
-  drawChart(d.history);
+  drawChart(d.history,'total-canvas','values');
+  drawChart(d.history,'saf-canvas','saf_values');
 }
 
-function drawChart(history){
-  var cv=document.getElementById('hist-canvas');
+var CHART_TITLES=['Total Settlements by Month','SAF Settlements by Month'];
+var chartIdx=0;
+function rotateChart(){
+  chartIdx=(chartIdx+1)%2;
+  document.getElementById('cv0').className='chart-view'+(chartIdx===0?' active':'');
+  document.getElementById('cv1').className='chart-view'+(chartIdx===1?' active':'');
+  document.getElementById('cd0').className='rdot'+(chartIdx===0?' active':'');
+  document.getElementById('cd1').className='rdot'+(chartIdx===1?' active':'');
+  document.getElementById('chart-title').textContent=CHART_TITLES[chartIdx];
+  if(D){
+    setTimeout(function(){
+      if(chartIdx===0)drawChart(D.history,'total-canvas','values');
+      else drawChart(D.history,'saf-canvas','saf_values');
+    },200);
+  }
+}
+setInterval(rotateChart,10000);
+
+function drawChart(history,canvasId,valKey){
+  valKey=valKey||'values';
+  var cv=document.getElementById(canvasId||'total-canvas');
   if(!cv||!history||!history.series||!history.series.length)return;
   var dpr=window.devicePixelRatio||1;
   var rect=cv.getBoundingClientRect();
@@ -392,9 +429,9 @@ function drawChart(history){
   var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(fs*1.4+legH);
   var cW=W-padL-padR,cH=H-padT-padB;
 
-  // Max across all series
+  // Max across all series (use selected value key)
   var maxVal=0;
-  series.forEach(function(s){s.values.forEach(function(v){if(v>maxVal)maxVal=v;});});
+  series.forEach(function(s){(s[valKey]||s.values).forEach(function(v){if(v&&v>maxVal)maxVal=v;});});
   if(maxVal<=0)return;
   var step=Math.pow(10,Math.floor(Math.log10(maxVal)));
   if(maxVal/step>5)step*=2;
@@ -419,13 +456,14 @@ function drawChart(history){
   // One line per FY — older years thinner/dimmer, nulls break the line
   series.forEach(function(s){
     var isCur=s.is_current;
+    var vals=s[valKey]||s.values;
     ctx.beginPath();
     ctx.strokeStyle=s.color;
     ctx.lineWidth=isCur?3.5:2.5;
     ctx.lineJoin='round';
     ctx.globalAlpha=isCur?1:0.65;
     var started=false;
-    s.values.forEach(function(v,i){
+    vals.forEach(function(v,i){
       if(v===null||v===undefined){started=false;return;}
       var x=padL+i*slotW+slotW/2;
       var y=padT+cH-Math.round(v/axMax*cH);
@@ -473,7 +511,12 @@ document.addEventListener('mozfullscreenchange',onFsChange);
 document.addEventListener('MSFullscreenChange',onFsChange);
 window.addEventListener('load',function(){setTimeout(goFullScreen,500);});
 document.addEventListener('click',goFullScreen);
-window.addEventListener('resize',function(){if(D)drawChart(D.history);});
+window.addEventListener('resize',function(){
+  if(D){
+    drawChart(D.history,'total-canvas','values');
+    drawChart(D.history,'saf-canvas','saf_values');
+  }
+});
 go();
 setInterval(go,60000);
 </script>
