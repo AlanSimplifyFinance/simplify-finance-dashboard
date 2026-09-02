@@ -243,8 +243,8 @@ tr.grand-total td{color:#00e8c4;font-weight:700;border-top:1px solid #30363d;bac
 .num{color:#f0f6fc;font-weight:700}
 .val{color:#58a6ff}
 .dim{color:#484f58}
-/* Chart panel */
-#chart-pnl{grid-column:2;grid-row:1/3}
+/* Panel placement */
+#pnl-year{grid-column:1;grid-row:1/3}
 canvas{width:100%;height:100%}
 </style>
 </head><body>
@@ -254,20 +254,7 @@ canvas{width:100%;height:100%}
   <div class="hdr-updated" id="hdr-updated">Loading&hellip;</div>
 </div>
 <div class="main">
-  <!-- Current month -->
-  <div class="pnl" id="pnl-cur">
-    <div class="ptitle" id="cur-title">Current Month</div>
-    <table>
-      <thead><tr>
-        <th>Channel</th>
-        <th>Enq</th>
-        <th>Sub #</th><th>Sub $</th>
-        <th>Sett #</th><th>Sett $</th>
-      </tr></thead>
-      <tbody id="cur-body"></tbody>
-    </table>
-  </div>
-  <!-- Full year table -->
+  <!-- Full year table — left column, full height -->
   <div class="pnl" id="pnl-year">
     <div class="ptitle">FY2026&ndash;27 Monthly Breakdown</div>
     <div style="overflow-y:auto;flex:1">
@@ -282,7 +269,20 @@ canvas{width:100%;height:100%}
     </table>
     </div>
   </div>
-  <!-- Chart -->
+  <!-- Current month — right column, top -->
+  <div class="pnl" id="pnl-cur">
+    <div class="ptitle" id="cur-title">Current Month</div>
+    <table>
+      <thead><tr>
+        <th>Channel</th>
+        <th>Enq</th>
+        <th>Sub #</th><th>Sub $</th>
+        <th>Sett #</th><th>Sett $</th>
+      </tr></thead>
+      <tbody id="cur-body"></tbody>
+    </table>
+  </div>
+  <!-- Chart — right column, bottom -->
   <div class="pnl" id="chart-pnl">
     <div class="ptitle">3-Year Settlement History (Monthly $)</div>
     <canvas id="hist-canvas"></canvas>
