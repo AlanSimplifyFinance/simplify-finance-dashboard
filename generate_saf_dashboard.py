@@ -227,7 +227,6 @@ def build_html(gist_url):
     return """<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <title>Simplify Asset Finance | Dashboard</title>
-<meta http-equiv="refresh" content="60">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;
@@ -245,11 +244,11 @@ body{background:#0d1117;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-seri
      padding:12px;overflow:hidden;display:flex;flex-direction:column}
 .ptitle{font-size:.6rem;color:#7d8590;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
 /* Tables */
-table{width:100%;border-collapse:collapse;font-size:.72rem}
-th{font-size:.58rem;color:#7d8590;text-transform:uppercase;letter-spacing:.06em;
-   padding:3px 6px;text-align:right;border-bottom:1px solid #30363d}
+table{width:100%;border-collapse:collapse;font-size:.65rem}
+th{font-size:.54rem;color:#7d8590;text-transform:uppercase;letter-spacing:.06em;
+   padding:2px 5px;text-align:right;border-bottom:1px solid #30363d}
 th:first-child{text-align:left}
-td{padding:3px 6px;text-align:right;color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
+td{padding:1px 5px;text-align:right;color:#c9d1d9;border-bottom:1px solid #1a1f26;white-space:nowrap}
 td:first-child{text-align:left}
 tr.month-sep td{border-top:2px solid #21262d}
 tr.cur-month td{background:rgba(0,232,196,.06)}
@@ -274,7 +273,6 @@ canvas{width:100%;height:100%}
   <!-- Full year table — left column, full height -->
   <div class="pnl" id="pnl-year">
     <div class="ptitle">FY2026&ndash;27 Monthly Breakdown</div>
-    <div style="overflow-y:auto;flex:1">
     <table>
       <thead><tr>
         <th>Month</th><th>Channel</th>
@@ -284,7 +282,6 @@ canvas{width:100%;height:100%}
       </tr></thead>
       <tbody id="year-body"></tbody>
     </table>
-    </div>
   </div>
   <!-- Current month — right column, top -->
   <div class="pnl" id="pnl-cur">
