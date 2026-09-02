@@ -162,12 +162,8 @@ function drawChart(history){
   var W=rect.width,H=rect.height;
   ctx.clearRect(0,0,W,H);
 
-  var colors={'SAF':'#00e8c4','SAB':'#00b4d8','Roam':'#3fb950'};
-  var keys=['SAF','SAB','Roam'];
-  var labels=['Simplify AF','Simplify AB','Roam Finance'];
   var fs=Math.max(9,Math.round(W*0.022));
-  var legH=fs*1.6;
-  var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(legH+fs*1.4);
+  var padL=Math.round(W*0.1),padR=10,padT=8,padB=Math.round(fs*1.6);
   var cW=W-padL-padR,cH=H-padT-padB;
 
   var maxVal=Math.max.apply(null,history.map(function(r){return r.total||0;}));
@@ -176,7 +172,7 @@ function drawChart(history){
   if(maxVal/step>5)step*=2;
   var axMax=Math.ceil(maxVal/step)*step;
 
-  // Y-axis
+  // Y-axis gridlines and labels
   ctx.font=Math.round(fs*0.78)+'px Inter,sans-serif';ctx.textAlign='right';ctx.fillStyle='#8b949e';
   for(var v=0;v<=axMax;v+=step){
     var y=padT+cH-Math.round(v/axMax*cH);
@@ -195,27 +191,21 @@ function drawChart(history){
     }
   });
 
-  // Lines per channel (stacked area-style, drawn as lines for clarity)
-  keys.forEach(function(k){
-    ctx.beginPath();ctx.strokeStyle=colors[k];ctx.lineWidth=2.5;ctx.lineJoin='round';
-    var first=true;
-    history.forEach(function(r,i){
-      var x=padL+i*slotW+slotW/2;
-      var y=padT+cH-Math.round((r[k]||0)/axMax*cH);
-      if(first){ctx.moveTo(x,y);first=false;}else{ctx.lineTo(x,y);}
-    });
-    ctx.stroke();
+  // Single total settlements line
+  ctx.beginPath();ctx.strokeStyle='#00e8c4';ctx.lineWidth=2.5;ctx.lineJoin='round';
+  history.forEach(function(r,i){
+    var x=padL+i*slotW+slotW/2;
+    var y=padT+cH-Math.round((r.total||0)/axMax*cH);
+    if(i===0){ctx.moveTo(x,y);}else{ctx.lineTo(x,y);}
   });
+  ctx.stroke();
 
-  // Legend
-  var lx=padL,ly=H-fs*0.4;
-  keys.forEach(function(k,i){
-    ctx.fillStyle=colors[k];
-    ctx.fillRect(lx,ly-fs*0.75,Math.round(fs*0.75),Math.round(fs*0.6));
-    ctx.fillStyle='#c9d1d9';ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';ctx.textAlign='left';
-    ctx.fillText(labels[i],lx+Math.round(fs*0.75)+4,ly);
-    lx+=ctx.measureText(labels[i]).width+Math.round(fs*1.8)+8;
-  });
+  // Dot on last data point
+  var last=history[history.length-1];
+  var lx=padL+(history.length-1)*slotW+slotW/2;
+  var ly=padT+cH-Math.round((last.total||0)/axMax*cH);
+  ctx.beginPath();ctx.arc(lx,ly,4,0,Math.PI*2);ctx.fillStyle='#00e8c4';ctx.fill();
+
 }
 
 function go(){
