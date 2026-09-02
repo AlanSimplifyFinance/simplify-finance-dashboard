@@ -65,14 +65,16 @@ def safe_num(v):
     try: return float(v) if not pd.isna(v) else 0.0
     except: return 0.0
 
+SAB_PARTNERS = {'beach box capital pty ltd', 'simplify finance - jaden head'}
+
 def classify_channel(row):
     biz = str(row['Business']).strip().lower()
     if 'roam' in biz:
         return 'Roam Finance'
     ref = str(row['Referral Partner']).strip().lower()
-    if ref in ('', 'nan', '0', 'direct') or 'simplify' in ref:
-        return 'Simplify Asset Finance'
-    return 'Simplify Asset Broker'
+    if ref in SAB_PARTNERS:
+        return 'Simplify Asset Broker'
+    return 'Simplify Asset Finance'
 
 CHANNELS = ['Simplify Asset Finance', 'Simplify Asset Broker', 'Roam Finance']
 CH_SHORT  = {'Simplify Asset Finance': 'SAF', 'Simplify Asset Broker': 'SAB', 'Roam Finance': 'Roam'}
