@@ -328,14 +328,15 @@ function update(d){
   // Full year table
   var yb=document.getElementById('year-body');yb.innerHTML='';
   d.monthly.forEach(function(mon,mi){
+    var baseCls=mon.is_future?'future':(mon.is_current?'cur-month':'');
     mon.channels.forEach(function(ch,ci){
       var tr=document.createElement('tr');
-      var cls=mon.is_future?'future':(mon.is_current?'cur-month':'');
+      var cls=baseCls;
       if(ci===0&&mi>0)cls+=' month-sep';
       tr.className=cls.trim();
-      var monthCell=ci===0?'<td rowspan="3" style="vertical-align:middle;color:'+(mon.is_current?'#00e8c4':'#c9d1d9')+';font-weight:'+(mon.is_current?700:400)+'">'+mon.month+'</td>':'';
+      var monthCell=ci===0?'<td rowspan="4" style="vertical-align:middle;color:'+(mon.is_current?'#00e8c4':'#c9d1d9')+';font-weight:'+(mon.is_current?700:400)+'">'+mon.month+'</td>':'';
       tr.innerHTML=monthCell+
-        '<td><span class="ch-dot" style="background:'+ch.color+'"></span>'+ch.short+'</td>'+
+        '<td style="text-align:left"><span class="ch-dot" style="background:'+ch.color+'"></span>'+ch.short+'</td>'+
         '<td>'+(ch.enq_n>0?ch.enq_n:'<span class="dim">—</span>')+'</td>'+
         '<td>'+(ch.sub_n>0?ch.sub_n:'<span class="dim">—</span>')+'</td>'+
         '<td class="val">'+(ch.sub_val>0?fm(ch.sub_val):'<span class="dim">—</span>')+'</td>'+
@@ -343,6 +344,18 @@ function update(d){
         '<td class="val">'+(ch.sett_val>0?fm(ch.sett_val):'<span class="dim">—</span>')+'</td>';
       yb.appendChild(tr);
     });
+    // Month total row
+    var t=mon.total;
+    var tot=document.createElement('tr');
+    tot.className='ch-total'+(mon.is_future?' future':'');
+    tot.innerHTML=
+      '<td style="color:#8b949e;font-size:.65rem;text-transform:uppercase;letter-spacing:.06em">Total</td>'+
+      '<td class="num">'+(t.enq_n>0?t.enq_n:'—')+'</td>'+
+      '<td class="num">'+(t.sub_n>0?t.sub_n:'—')+'</td>'+
+      '<td class="val">'+(t.sub_val>0?fm(t.sub_val):'—')+'</td>'+
+      '<td class="num">'+(t.sett_n>0?t.sett_n:'—')+'</td>'+
+      '<td class="val">'+(t.sett_val>0?fm(t.sett_val):'—')+'</td>';
+    yb.appendChild(tot);
   });
 
   drawChart(d.history);
