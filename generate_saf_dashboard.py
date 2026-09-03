@@ -36,13 +36,20 @@ def download_excel_cloud():
     token = get_graph_token()
     headers = {'Authorization': f'Bearer {token}'}
     FILE = 'SAF - Application Report.xlsx'
-    # Try most likely SharePoint paths (same root drive as Business Data.xlsx)
+    SITE = 'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
+
+    # 1. Try known paths (root drive and named libraries)
     paths = [
-        f'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com/drive/root:/Operations/Dashboards/{FILE}:/content',
-        f'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com/drive/root:/Operations/Asset Finance/{FILE}:/content',
-        f'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com/drive/root:/Shared Documents/Asset Finance/{FILE}:/content',
-        f'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com/drive/root:/Asset Finance/{FILE}:/content',
-        f'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com/drive/root:/Shared Documents/{FILE}:/content',
+        # Documents library > Asset Finance (Communication site - Documents)
+        f'{SITE}/lists/Documents/drive/root:/Asset Finance/{FILE}:/content',
+        f'{SITE}/drive/root:/Documents/Asset Finance/{FILE}:/content',
+        # Shared Documents library > Asset Finance
+        f'{SITE}/lists/Shared Documents/drive/root:/Asset Finance/{FILE}:/content',
+        f'{SITE}/drive/root:/Shared Documents/Asset Finance/{FILE}:/content',
+        # Operations library (test copy location)
+        f'{SITE}/drive/root:/Operations/Dashboards/{FILE}:/content',
+        f'{SITE}/drive/root:/Operations/Asset Finance/{FILE}:/content',
+        f'{SITE}/drive/root:/Asset Finance/{FILE}:/content',
     ]
     for url in paths:
         r = requests.get(url, headers=headers, timeout=60)
@@ -52,7 +59,24 @@ def download_excel_cloud():
             print(f'  ✓ Downloaded from: {url}')
             return Path(tmp.name)
         print(f'  ✗ {r.status_code} at {url}')
-    raise FileNotFoundError(f'Could not find {FILE} in SharePoint — confirm the path and update EXCEL_CANDIDATES')
+
+    # 2. Fallback: enumerate all drives on the site and search each
+    print('  Trying drive enumeration...')
+    dr = requests.get(f'{SITE}/drives', headers=headers, timeout=30)
+    if dr.status_code == 200:
+        for drive in dr.json().get('value', []):
+            drive_id = drive['id']
+            name = drive.get('name', '')
+            url = f'https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/Asset Finance/{FILE}:/content'
+            r = requests.get(url, headers=headers, timeout=60)
+            print(f'  Drive "{name}": {r.status_code}')
+            if r.status_code == 200:
+                tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+                tmp.write(r.content); tmp.close()
+                print(f'  ✓ Downloaded from drive: {name}')
+                return Path(tmp.name)
+
+    raise FileNotFoundError(f'Could not find {FILE} in SharePoint — check permissions and path')
 
 def find_excel():
     for p in EXCEL_CANDIDATES:
