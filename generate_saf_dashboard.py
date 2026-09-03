@@ -38,18 +38,12 @@ def download_excel_cloud():
     FILE = 'SAF - Application Report.xlsx'
     SITE = 'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
 
-    # 1. Try known paths (root drive and named libraries)
+    # Primary path: Documents library > Asset Finance folder
     paths = [
-        # Documents library > Asset Finance (Communication site - Documents)
         f'{SITE}/lists/Documents/drive/root:/Asset Finance/{FILE}:/content',
+        # Fallbacks in case file is moved
         f'{SITE}/drive/root:/Documents/Asset Finance/{FILE}:/content',
-        # Shared Documents library > Asset Finance
-        f'{SITE}/lists/Shared Documents/drive/root:/Asset Finance/{FILE}:/content',
-        f'{SITE}/drive/root:/Shared Documents/Asset Finance/{FILE}:/content',
-        # Operations library (test copy location)
         f'{SITE}/drive/root:/Operations/Dashboards/{FILE}:/content',
-        f'{SITE}/drive/root:/Operations/Asset Finance/{FILE}:/content',
-        f'{SITE}/drive/root:/Asset Finance/{FILE}:/content',
     ]
     for url in paths:
         r = requests.get(url, headers=headers, timeout=60)
@@ -60,23 +54,7 @@ def download_excel_cloud():
             return Path(tmp.name)
         print(f'  ✗ {r.status_code} at {url}')
 
-    # 2. Fallback: enumerate all drives on the site and search each
-    print('  Trying drive enumeration...')
-    dr = requests.get(f'{SITE}/drives', headers=headers, timeout=30)
-    if dr.status_code == 200:
-        for drive in dr.json().get('value', []):
-            drive_id = drive['id']
-            name = drive.get('name', '')
-            url = f'https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/Asset Finance/{FILE}:/content'
-            r = requests.get(url, headers=headers, timeout=60)
-            print(f'  Drive "{name}": {r.status_code}')
-            if r.status_code == 200:
-                tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
-                tmp.write(r.content); tmp.close()
-                print(f'  ✓ Downloaded from drive: {name}')
-                return Path(tmp.name)
-
-    raise FileNotFoundError(f'Could not find {FILE} in SharePoint — check permissions and path')
+    raise FileNotFoundError(f'Could not find {FILE} in SharePoint — confirm it is in the Documents > Asset Finance folder')
 
 def find_excel():
     for p in EXCEL_CANDIDATES:
