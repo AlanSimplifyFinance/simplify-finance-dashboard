@@ -111,6 +111,10 @@ canvas{flex:1;width:100%;min-height:0;display:block}
   <div class="pnl" id="pf">
     <div class="ptitle">Month in Focus</div>
     <div class="f-month" id="f-month">&mdash;</div>
+    <div class="f-section">Lead Generation</div>
+    <div class="f-row"><span class="f-label">Calls</span><span class="f-val" id="f-calls">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Connections</span><span class="f-val" id="f-connections">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Leads</span><span class="f-val" id="f-leads">&mdash;</span></div>
     <div class="f-section">Pipeline</div>
     <div class="f-row"><span class="f-label">Borrowing Capacities</span><span class="f-val" id="f-bc">&mdash;</span></div>
     <div class="f-row"><span class="f-label">Loan Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
@@ -494,6 +498,9 @@ function update(d){
 
   // Month in Focus
   document.getElementById('f-month').textContent=d.current_month_full||d.current_month;
+  document.getElementById('f-calls').textContent=d.broker_calls||0;
+  document.getElementById('f-connections').textContent=d.broker_connections||0;
+  document.getElementById('f-leads').textContent=d.broker_leads||0;
   document.getElementById('f-bc').textContent=d.bc_total||0;
   document.getElementById('f-lo').textContent=d.lo_total||0;
   document.getElementById('f-cp').textContent=d.cp_total||0;
