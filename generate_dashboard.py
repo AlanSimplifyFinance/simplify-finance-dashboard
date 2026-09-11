@@ -252,6 +252,18 @@ def read_lender_mix(path):
     lenders.sort(key=lambda x: x['amount'], reverse=True)
     return lenders
 
+# ── Brokers (Lead Generation) ─────────────────────────────────────────────────
+def read_brokers(path):
+    """Read Brokers sheet. R11/S11/T11 (row 10, cols 17/18/19) = total Calls/Connections/Leads."""
+    try:
+        df = pd.read_excel(path, sheet_name='Brokers', header=None)
+        calls       = int(safe_num(df.iloc[10, 17]))
+        connections = int(safe_num(df.iloc[10, 18]))
+        leads       = int(safe_num(df.iloc[10, 19]))
+        return calls, connections, leads
+    except Exception:
+        return 0, 0, 0
+
 # ── Lead Pipeline ─────────────────────────────────────────────────────────────
 def read_lead_pipeline(path):
     """Read Lead Pipeline sheet. Row 0 = headers, rows 1+ = weekly data.
@@ -302,7 +314,7 @@ def read_lodgement_pipeline(path):
     return rows
 
 # ── Build payload ──────────────────────────────────────────────────────────────
-def build_data(month_data, bc, lo, cp, leave, leave_title, all_time, history, lender_mix=None, lead_pipeline=None, lodgement_pipeline=None):
+def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads, leave, leave_title, all_time, history, lender_mix=None, lead_pipeline=None, lodgement_pipeline=None):
     now            = datetime.now(SYDNEY)
     cur_month      = now.strftime('%b')
     days_in_month  = calendar.monthrange(now.year, now.month)[1]
@@ -375,6 +387,7 @@ def build_data(month_data, bc, lo, cp, leave, leave_title, all_time, history, le
         'current_month_target': cur_target,
         'pace_pct': pace_pct, 'pace_status': pace,
         'bc_total': bc, 'lo_total': lo, 'cp_total': cp,
+        'broker_calls': broker_calls, 'broker_connections': broker_connections, 'broker_leads': broker_leads,
         'leave': leave, 'leave_title': leave_title,
         'all_time_settlements': all_time,
         'history': history,
@@ -522,6 +535,10 @@ canvas{flex:1;width:100%;min-height:0;display:block}
   <div class="pnl" id="pf">
     <div class="ptitle">Month in Focus</div>
     <div class="f-month" id="f-month">&mdash;</div>
+    <div class="f-section">Lead Generation</div>
+    <div class="f-row"><span class="f-label">Calls</span><span class="f-val" id="f-calls">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Connections</span><span class="f-val" id="f-connections">&mdash;</span></div>
+    <div class="f-row"><span class="f-label">Leads</span><span class="f-val" id="f-leads">&mdash;</span></div>
     <div class="f-section">Pipeline</div>
     <div class="f-row"><span class="f-label">Borrowing Capacities</span><span class="f-val" id="f-bc">&mdash;</span></div>
     <div class="f-row"><span class="f-label">Loan Options</span><span class="f-val" id="f-lo">&mdash;</span></div>
@@ -905,6 +922,9 @@ function update(d){
 
   // Month in Focus
   document.getElementById('f-month').textContent=d.current_month_full||d.current_month;
+  document.getElementById('f-calls').textContent=d.broker_calls||0;
+  document.getElementById('f-connections').textContent=d.broker_connections||0;
+  document.getElementById('f-leads').textContent=d.broker_leads||0;
   document.getElementById('f-bc').textContent=d.bc_total||0;
   document.getElementById('f-lo').textContent=d.lo_total||0;
   document.getElementById('f-cp').textContent=d.cp_total||0;
@@ -1042,6 +1062,9 @@ def main():
     bc, lo, cp = read_credit_team(path, cur_short)
     print(f'  ✓ BCs: {bc} | LOs: {lo} | CPs: {cp}')
 
+    broker_calls, broker_connections, broker_leads = read_brokers(path)
+    print(f'  ✓ Lead gen: {broker_calls} calls | {broker_connections} connections | {broker_leads} leads')
+
     leave, leave_title = read_leave(path, cur_full)
     print(f'  ✓ Leave entries: {len(leave)} ({leave_title})')
 
@@ -1054,7 +1077,7 @@ def main():
     lodgement_pipeline = read_lodgement_pipeline(path)
     print(f'  ✓ Lodgement pipeline: {len(lodgement_pipeline)} weeks')
 
-    data = build_data(month_data, bc, lo, cp, leave, leave_title, all_time, history, lender_mix, lead_pipeline, lodgement_pipeline)
+    data = build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads, leave, leave_title, all_time, history, lender_mix, lead_pipeline, lodgement_pipeline)
     print(f'  ✓ YTD: ${data["ytd_settlements"]:,.0f} | Pace: {data["pace_status"]}')
 
     try:
