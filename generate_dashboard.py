@@ -464,7 +464,7 @@ tr.fut td:first-child{color:#2d333b;font-size:.7rem}
 .f-month{font-size:1.3rem;font-weight:800;color:#00e8c4;margin-bottom:1px}
 /* Section dividers — very dim */
 .f-section{font-size:.52rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
-           margin-top:2px;margin-bottom:0px;border-top:1px solid #21262d;padding-top:2px}
+           margin-top:1px;margin-bottom:0px;border-top:1px solid #21262d;padding-top:1px}
 .f-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0px}
 /* Labels readable but clearly secondary to data values */
 .f-label{font-size:.65rem;color:#8b949e}
@@ -551,8 +551,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
     </div>
     <div class="f-section">Settlement Pace</div>
     <div class="f-pct" id="f-pct">&mdash;</div>
-    <div class="f-bar"><div class="f-bar-fill" id="f-bar" style="width:0"></div></div>
-    <div class="f-days" id="f-days">&mdash;</div>
+    <div class="f-bar" style="margin:1px 0 2px"><div class="f-bar-fill" id="f-bar" style="width:0"></div></div>
     <span class="f-pace p-ea" id="f-pace">&mdash;</span>
   </div>
 
