@@ -62,16 +62,86 @@ def get_graph_token():
     return r.json()['access_token']
 
 def download_excel_cloud():
-    """Download Business Data.xlsx from SharePoint via Graph API, return local temp path."""
+    """Download Business Data.xlsx from SharePoint via Graph API, return local temp path.
+    Tries multiple known paths and searches as fallback. Prefers file with all 9 sheets."""
     token = get_graph_token()
-    headers = {'Authorization': f'Bearer {token}'}
-    url = ('https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
-           '/drive/root:/Operations/Dashboards/Business Data.xlsx:/content')
-    r = requests.get(url, headers=headers, timeout=60)
-    r.raise_for_status()
-    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
-    tmp.write(r.content); tmp.close()
-    return Path(tmp.name)
+    h = {'Authorization': f'Bearer {token}'}
+    base = 'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
+
+    # Candidate paths (ordered by likelihood of being correct)
+    candidates = [
+        f'{base}/lists/Operations/drive/root:/Dashboards/Business Data.xlsx:/content',
+        f'{base}/drive/root:/Operations/Dashboards/Business Data.xlsx:/content',
+        f'{base}/lists/Documents/drive/root:/Operations/Dashboards/Business Data.xlsx:/content',
+    ]
+
+    REQUIRED_SHEETS = {'Year On Year Stats', 'Leave', 'CreditTeam'}
+
+    def _try_download(url):
+        """Attempt download, return (path, sheet_names) or (None, None)."""
+        try:
+            r = requests.get(url, headers=h, timeout=60)
+            if r.status_code != 200:
+                return None, None
+            tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+            tmp.write(r.content); tmp.close()
+            p = Path(tmp.name)
+            try:
+                xl = pd.ExcelFile(p)
+                return p, xl.sheet_names
+            except Exception:
+                p.unlink(missing_ok=True)
+                return None, None
+        except Exception:
+            return None, None
+
+    best_path, best_sheets, best_url = None, [], None
+    for url in candidates:
+        p, sheets = _try_download(url)
+        if p is None:
+            continue
+        short = url.replace(base, '')
+        print(f'  ✓ Downloaded from: {short}')
+        print(f'    Sheets ({len(sheets)}): {sheets}')
+        if REQUIRED_SHEETS.issubset(set(sheets)):
+            # Prefer this one — has Leave and all critical sheets
+            if best_path and best_path != p:
+                best_path.unlink(missing_ok=True)
+            best_path, best_sheets, best_url = p, sheets, url
+            break  # Found a complete file — no need to try more
+        else:
+            missing = sorted(REQUIRED_SHEETS - set(sheets))
+            print(f'    ✗ Missing sheets: {missing} — trying next path')
+            if best_path is None:
+                best_path, best_sheets, best_url = p, sheets, url  # keep as fallback
+            else:
+                p.unlink(missing_ok=True)
+
+    if best_path:
+        if not REQUIRED_SHEETS.issubset(set(best_sheets)):
+            print(f'  ⚠ Warning: best file is missing sheets {sorted(REQUIRED_SHEETS - set(best_sheets))}')
+            print(f'    The SharePoint file may be an old version. Please re-upload the current Business Data.xlsx.')
+        return best_path
+
+    # Last resort: search across SharePoint
+    print('  Searching SharePoint for Business Data.xlsx ...')
+    r = requests.get(
+        f"{base}/drive/root/search(q='Business Data')",
+        headers=h, timeout=30)
+    if r.status_code == 200:
+        for item in r.json().get('value', []):
+            name = item.get('name', '')
+            if 'Business Data' in name and name.endswith('.xlsx'):
+                dl_url = item.get('@microsoft.graph.downloadUrl')
+                pref = item.get('parentReference', {}).get('path', '')
+                print(f'    Found: {name} at {pref}')
+                if dl_url:
+                    p, sheets = _try_download(dl_url)
+                    if p:
+                        print(f'    Sheets: {sheets}')
+                        return p
+
+    raise FileNotFoundError('Cannot find Business Data.xlsx on SharePoint — check the file path and permissions.')
 
 def safe_num(v):
     try:
@@ -1031,12 +1101,12 @@ def main():
     if cloud:
         try:
             path = download_excel_cloud()
-            print('  ✓ Excel downloaded from SharePoint')
         except Exception as e:
             print(f'  ✗ SharePoint download: {e}'); return 1
     else:
         try:
             path = find_excel()
+            print(f'  ✓ Local Excel: {path.name}')
         except FileNotFoundError as e:
             print(f'  ✗ Excel: {e}'); return 1
 
