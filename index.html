@@ -37,7 +37,7 @@ tr.fut td:first-child{color:#2d333b;font-size:.7rem}
 .rp{display:inline-block;width:5px;height:5px;border-radius:50%;background:#3fb950;margin-left:3px;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 /* ── Month in Focus ───────────────────────────────────────── */
-.f-month{font-size:1.3rem;font-weight:800;color:#00e8c4;margin-bottom:1px}
+.f-month{font-size:1.1rem;font-weight:800;color:#00e8c4;margin-bottom:1px;margin-top:0}
 /* Section dividers — very dim */
 .f-section{font-size:.52rem;color:#7d8590;text-transform:uppercase;letter-spacing:.1em;
            margin-top:1px;margin-bottom:0px;border-top:1px solid #21262d;padding-top:1px}
@@ -109,7 +109,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
 
   <!-- Month in Focus -->
   <div class="pnl" id="pf">
-    <div class="ptitle">Month in Focus</div>
+    <div class="ptitle" style="margin-bottom:3px;padding-bottom:3px">Month in Focus</div>
     <div class="f-month" id="f-month">&mdash;</div>
     <div class="f-section">Lead Generation</div>
     <div class="f-row"><span class="f-label">Calls</span><span class="f-val" id="f-calls">&mdash;</span></div>
@@ -512,8 +512,8 @@ function update(d){
   var pp=d.pace_pct||0;
   var pe=document.getElementById('f-pct');pe.textContent=pp.toFixed(1)+'%';pe.style.color=col(pp);
   var bf=document.getElementById('f-bar');bf.style.width=Math.min(pp,100)+'%';bf.style.background=col(pp);
-  var bizTxt=(d.biz_days_elapsed||0)+' of '+(d.biz_days_total||0)+' business days — MTD target: '+fm(d.mtd_target||0);
-  document.getElementById('f-days').textContent=bizTxt;
+  var fdEl=document.getElementById('f-days');
+  if(fdEl){var bizTxt=(d.biz_days_elapsed||0)+' of '+(d.biz_days_total||0)+' business days — MTD target: '+fm(d.mtd_target||0);fdEl.textContent=bizTxt;}
   var pac=document.getElementById('f-pace');pac.textContent=d.pace_status;pac.className='f-pace';
   if(d.pace_status==='On Track')pac.classList.add('p-on');
   else if(d.pace_status==='Slightly Behind')pac.classList.add('p-sl');
