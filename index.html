@@ -151,7 +151,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
     </div>
   </div>
 
-  <!-- Rotating: Gauge + 5yr Chart -->
+  <!-- Rotating: Gauge + 5yr Chart + Lender Mix (x2) + Pipelines -->
   <div class="pnl" id="pr" style="padding:0;overflow:visible">
     <div class="rot-view active" id="rv0">
       <div class="rot-title">All Time Settlements</div>
@@ -162,7 +162,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <canvas id="chart-canvas"></canvas>
     </div>
     <div class="rot-view" id="rv2">
-      <div class="rot-title">FY2026 Lender Mix</div>
+      <div class="rot-title">FY26 Settlement Mix</div>
       <canvas id="donut-canvas"></canvas>
     </div>
     <div class="rot-view" id="rv3">
@@ -173,12 +173,17 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <div class="rot-title">Lodgement Pipeline</div>
       <canvas id="lodge-canvas"></canvas>
     </div>
+    <div class="rot-view" id="rv5">
+      <div class="rot-title">Loan Book Mix &mdash; Jun 2026</div>
+      <canvas id="donut-canvas-book"></canvas>
+    </div>
     <div class="rot-indicator">
       <div class="rot-dot active" id="rd0"></div>
       <div class="rot-dot" id="rd1"></div>
       <div class="rot-dot" id="rd2"></div>
       <div class="rot-dot" id="rd3"></div>
       <div class="rot-dot" id="rd4"></div>
+      <div class="rot-dot" id="rd5"></div>
     </div>
   </div>
 
@@ -303,13 +308,13 @@ function drawChart(history){
   });
 }
 
-function drawDonut(lenders){
-  var cv=document.getElementById('donut-canvas');
+function drawDonut(canvasId, lenders, centreLabel){
+  var cv=document.getElementById(canvasId);
   if(!cv||!lenders||!lenders.length)return;
   cvSize(cv);
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
-  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341'];
+  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341','#ff7b72','#ffa657'];
   var total=lenders.reduce(function(s,l){return s+l.amount;},0);
   if(total<=0)return;
   var fs=Math.max(11,Math.round(cv.width*0.028));
@@ -337,11 +342,11 @@ function drawDonut(lenders){
   ctx.arc(cx,cy,r*0.52,0,Math.PI*2);
   ctx.fillStyle='#161b22';
   ctx.fill();
-  // Centre: total
+  // Centre: label + total
   ctx.textAlign='center';
   ctx.fillStyle='#7d8590';
   ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';
-  ctx.fillText('FY26 Total',cx,cy-Math.round(fs*0.6));
+  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.6));
   ctx.fillStyle='#f0f6fc';
   ctx.font='bold '+Math.round(fs*1.35)+'px Inter,sans-serif';
   ctx.fillText(fm(total),cx,cy+Math.round(fs*0.65));
@@ -462,16 +467,17 @@ function drawLodgementPipeline(rows){
 }
 
 function rotate(){
-  rotIdx=(rotIdx+1)%5;
-  for(var i=0;i<5;i++){
+  rotIdx=(rotIdx+1)%6;
+  for(var i=0;i<6;i++){
     document.getElementById('rv'+i).classList.toggle('active',rotIdx===i);
     document.getElementById('rd'+i).classList.toggle('active',rotIdx===i);
   }
   if(rotIdx===0&&D)setTimeout(function(){drawGauge(D.all_time_settlements);},900);
   if(rotIdx===1&&D)setTimeout(function(){drawChart(D.history);},900);
-  if(rotIdx===2&&D)setTimeout(function(){drawDonut(D.lender_mix);},900);
+  if(rotIdx===2&&D)setTimeout(function(){drawDonut('donut-canvas',D.lender_mix,'FY26 Setts');},900);
   if(rotIdx===3&&D)setTimeout(function(){drawLeadPipeline(D.lead_pipeline);},900);
   if(rotIdx===4&&D)setTimeout(function(){drawLodgementPipeline(D.lodgement_pipeline);},900);
+  if(rotIdx===5&&D)setTimeout(function(){drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');},900);
 }
 
 function update(d){
@@ -544,9 +550,10 @@ function update(d){
   // Rotating views
   if(rotIdx===0)drawGauge(d.all_time_settlements);
   else if(rotIdx===1)drawChart(d.history);
-  else if(rotIdx===2)drawDonut(d.lender_mix);
+  else if(rotIdx===2)drawDonut('donut-canvas',d.lender_mix,'FY26 Setts');
   else if(rotIdx===3)drawLeadPipeline(d.lead_pipeline);
-  else drawLodgementPipeline(d.lodgement_pipeline);
+  else if(rotIdx===4)drawLodgementPipeline(d.lodgement_pipeline);
+  else drawDonut('donut-canvas-book',d.lender_mix_book,'Loan Book');
 }
 
 function go(){
@@ -559,9 +566,10 @@ window.addEventListener('resize',function(){
   if(!D)return;
   if(rotIdx===0)drawGauge(D.all_time_settlements);
   else if(rotIdx===1)drawChart(D.history);
-  else if(rotIdx===2)drawDonut(D.lender_mix);
+  else if(rotIdx===2)drawDonut('donut-canvas',D.lender_mix,'FY26 Setts');
   else if(rotIdx===3)drawLeadPipeline(D.lead_pipeline);
-  else drawLodgementPipeline(D.lodgement_pipeline);
+  else if(rotIdx===4)drawLodgementPipeline(D.lodgement_pipeline);
+  else drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');
 });
 
 // Fullscreen — click, Enter, Space, F, or F11 on TV remote
