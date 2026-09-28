@@ -46,7 +46,7 @@ def find_excel():
 
 def is_cloud():
     """True when running in GitHub Actions with Azure credentials available."""
-       return os.environ.get('GITHUB_ACTIONS') == 'true'
+    return os.environ.get('GITHUB_ACTIONS') == 'true'
 
 def get_graph_token():
     """Obtain a Microsoft Graph API token via client credentials flow."""
