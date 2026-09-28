@@ -46,7 +46,7 @@ def find_excel():
 
 def is_cloud():
     """True when running in GitHub Actions with Azure credentials available."""
-    return os.environ.get('GITHUB_ACTIONS') == 'true'
+    return bool(os.environ.get('AZURE_CLIENT_SECRET'))
 
 def get_graph_token():
     """Obtain a Microsoft Graph API token via client credentials flow."""
@@ -304,23 +304,90 @@ def read_leave(path, cur_month_full):
     return entries, title
 
 def read_lender_mix(path):
-    """Read LenderMix sheet. Columns: A=Lender name, B=Settlement $ amount.
-       Skips blank/header rows. Returns list sorted by amount descending."""
+    """Read 'Lender Mix' sheet. Two datasets sit side by side:
+      - FY26 Settlements: col A = Lender, col C = $ Settled  (rows 3+)
+      - Loan Book 30/6/26: col E = Lender, col G = $ amount  (rows 3+)
+    Normalises name capitalisation, merges 'Commercial' variants into their
+    parent bank, and groups lenders below 3% of total into 'Other'.
+    Returns (fy26_list, book_list) — each a list of {name, amount} dicts."""
     try:
-        df = pd.read_excel(path, sheet_name='LenderMix', header=None)
+        df = pd.read_excel(path, sheet_name='Lender Mix', header=None)
     except Exception:
-        return []
-    lenders = []
-    for i in range(len(df)):
-        row = df.iloc[i]
-        name = str(row.iloc[0]).strip()
-        if not name or name.lower() in ('nan', 'lender', 'name', 'bank', ''):
-            continue
-        amount = safe_num(row.iloc[1]) if len(row) > 1 else 0.0
-        if amount > 0:
-            lenders.append({'name': name, 'amount': round(amount)})
-    lenders.sort(key=lambda x: x['amount'], reverse=True)
-    return lenders
+        return [], []
+
+    # Commercial variants → parent bank name
+    COMMERCIAL = {
+        'anz commercial':       'ANZ',
+        'cba commercial':       'CBA',
+        'nab commercial':       'NAB',
+        'st george commercial': 'St George',
+        'la trobe commercial':  'La Trobe',
+        'liberty commercial':   'Liberty',
+    }
+    # Capitalisation fixes (handles mangled entries like 'BankweSt', 'FirStmac')
+    NAME_FIX = {
+        'amp': 'AMP',               'anz': 'ANZ',
+        'auswide ltd': 'Auswide',   'bank australia': 'Bank Australia',
+        'bankwest': 'Bankwest',     'bendigo': 'Bendigo',
+        'bluestone': 'Bluestone',   'bom': 'BOM',
+        'boq': 'BOQ',               'citibank': 'Citibank',
+        'cba': 'CBA',               'firstmac': 'Firstmac',
+        'ing': 'ING',               'la trobe': 'La Trobe',
+        'liberty': 'Liberty',       'ma money': 'MA Money',
+        'macquarie': 'Macquarie',   'me bank': 'ME Bank',
+        'mortgage ezy': 'Mortgage Ezy', 'move': 'MOVE',
+        'nab': 'NAB',               'orde': 'Orde',
+        'people first': 'People First', 'pepper': 'Pepper',
+        'resimac': 'Resimac',       'st george': 'St George',
+        'suncorp': 'Suncorp',       'think tank': 'Think Tank',
+        'ubank': 'uBank',           'westpac': 'Westpac',
+        'wlth': 'WLTH',
+    }
+    SKIP = {'lender', '# settled', '$ settled', 'grand total', 'total', '', 'nan'}
+
+    def canonical(raw):
+        low = str(raw).strip().lower()
+        if low in COMMERCIAL:
+            return COMMERCIAL[low]           # merge commercial into parent
+        return NAME_FIX.get(low, str(raw).strip())
+
+    def read_col(col_lender, col_amount):
+        """Aggregate $ amounts by canonical lender name."""
+        totals = {}
+        for i in range(2, len(df)):          # rows 0–1 are header rows
+            row = df.iloc[i]
+            raw = str(row.iloc[col_lender]).strip()
+            if not raw or raw.lower() in SKIP:
+                continue
+            amt = safe_num(row.iloc[col_amount]) if len(row) > col_amount else 0.0
+            if amt <= 0:
+                continue
+            name = canonical(raw)
+            totals[name] = totals.get(name, 0.0) + amt
+        return totals
+
+    def bucket(totals, pct_threshold=3.0):
+        """Group lenders below threshold into 'Other'. Return sorted list."""
+        grand = sum(totals.values())
+        if grand <= 0:
+            return []
+        other = 0.0
+        out = []
+        for name, amt in totals.items():
+            if amt / grand * 100 >= pct_threshold:
+                out.append({'name': name, 'amount': round(amt)})
+            else:
+                other += amt
+        if other > 0:
+            out.append({'name': 'Other', 'amount': round(other)})
+        out.sort(key=lambda x: x['amount'], reverse=True)
+        return out
+
+    # FY26 Settlements: col 0 (A) = Lender, col 2 (C) = $ Settled
+    # Loan Book:        col 4 (E) = Lender, col 6 (G) = $ amount
+    fy26 = bucket(read_col(0, 2))
+    book = bucket(read_col(4, 6))
+    return fy26, book
 
 # ── Brokers (Lead Generation) ─────────────────────────────────────────────────
 def read_brokers(path):
@@ -384,7 +451,10 @@ def read_lodgement_pipeline(path):
     return rows
 
 # ── Build payload ──────────────────────────────────────────────────────────────
-def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads, leave, leave_title, all_time, history, lender_mix=None, lead_pipeline=None, lodgement_pipeline=None):
+def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads,
+               leave, leave_title, all_time, history,
+               lender_mix=None, lender_mix_book=None,
+               lead_pipeline=None, lodgement_pipeline=None):
     now            = datetime.now(SYDNEY)
     cur_month      = now.strftime('%b')
     days_in_month  = calendar.monthrange(now.year, now.month)[1]
@@ -462,6 +532,7 @@ def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_
         'all_time_settlements': all_time,
         'history': history,
         'lender_mix': lender_mix or [],
+        'lender_mix_book': lender_mix_book or [],
         'lead_pipeline': lead_pipeline or [],
         'lodgement_pipeline': lodgement_pipeline or [],
         'last_updated': now.strftime('%d %b %Y %-I:%M %p'),
@@ -645,7 +716,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
     </div>
   </div>
 
-  <!-- Rotating: Gauge + 5yr Chart -->
+  <!-- Rotating: Gauge + 5yr Chart + Lender Mix (x2) + Pipelines -->
   <div class="pnl" id="pr" style="padding:0;overflow:visible">
     <div class="rot-view active" id="rv0">
       <div class="rot-title">All Time Settlements</div>
@@ -656,7 +727,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <canvas id="chart-canvas"></canvas>
     </div>
     <div class="rot-view" id="rv2">
-      <div class="rot-title">FY2026 Lender Mix</div>
+      <div class="rot-title">FY26 Settlement Mix</div>
       <canvas id="donut-canvas"></canvas>
     </div>
     <div class="rot-view" id="rv3">
@@ -667,12 +738,17 @@ canvas{flex:1;width:100%;min-height:0;display:block}
       <div class="rot-title">Lodgement Pipeline</div>
       <canvas id="lodge-canvas"></canvas>
     </div>
+    <div class="rot-view" id="rv5">
+      <div class="rot-title">Loan Book Mix &mdash; Jun 2026</div>
+      <canvas id="donut-canvas-book"></canvas>
+    </div>
     <div class="rot-indicator">
       <div class="rot-dot active" id="rd0"></div>
       <div class="rot-dot" id="rd1"></div>
       <div class="rot-dot" id="rd2"></div>
       <div class="rot-dot" id="rd3"></div>
       <div class="rot-dot" id="rd4"></div>
+      <div class="rot-dot" id="rd5"></div>
     </div>
   </div>
 
@@ -797,13 +873,13 @@ function drawChart(history){
   });
 }
 
-function drawDonut(lenders){
-  var cv=document.getElementById('donut-canvas');
+function drawDonut(canvasId, lenders, centreLabel){
+  var cv=document.getElementById(canvasId);
   if(!cv||!lenders||!lenders.length)return;
   cvSize(cv);
   var ctx=cv.getContext('2d');
   ctx.clearRect(0,0,cv.width,cv.height);
-  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341'];
+  var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341','#ff7b72','#ffa657'];
   var total=lenders.reduce(function(s,l){return s+l.amount;},0);
   if(total<=0)return;
   var fs=Math.max(11,Math.round(cv.width*0.028));
@@ -831,11 +907,11 @@ function drawDonut(lenders){
   ctx.arc(cx,cy,r*0.52,0,Math.PI*2);
   ctx.fillStyle='#161b22';
   ctx.fill();
-  // Centre: total
+  // Centre: label + total
   ctx.textAlign='center';
   ctx.fillStyle='#7d8590';
   ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';
-  ctx.fillText('FY26 Total',cx,cy-Math.round(fs*0.6));
+  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.6));
   ctx.fillStyle='#f0f6fc';
   ctx.font='bold '+Math.round(fs*1.35)+'px Inter,sans-serif';
   ctx.fillText(fm(total),cx,cy+Math.round(fs*0.65));
@@ -956,16 +1032,17 @@ function drawLodgementPipeline(rows){
 }
 
 function rotate(){
-  rotIdx=(rotIdx+1)%5;
-  for(var i=0;i<5;i++){
+  rotIdx=(rotIdx+1)%6;
+  for(var i=0;i<6;i++){
     document.getElementById('rv'+i).classList.toggle('active',rotIdx===i);
     document.getElementById('rd'+i).classList.toggle('active',rotIdx===i);
   }
   if(rotIdx===0&&D)setTimeout(function(){drawGauge(D.all_time_settlements);},900);
   if(rotIdx===1&&D)setTimeout(function(){drawChart(D.history);},900);
-  if(rotIdx===2&&D)setTimeout(function(){drawDonut(D.lender_mix);},900);
+  if(rotIdx===2&&D)setTimeout(function(){drawDonut('donut-canvas',D.lender_mix,'FY26 Setts');},900);
   if(rotIdx===3&&D)setTimeout(function(){drawLeadPipeline(D.lead_pipeline);},900);
   if(rotIdx===4&&D)setTimeout(function(){drawLodgementPipeline(D.lodgement_pipeline);},900);
+  if(rotIdx===5&&D)setTimeout(function(){drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');},900);
 }
 
 function update(d){
@@ -1038,9 +1115,10 @@ function update(d){
   // Rotating views
   if(rotIdx===0)drawGauge(d.all_time_settlements);
   else if(rotIdx===1)drawChart(d.history);
-  else if(rotIdx===2)drawDonut(d.lender_mix);
+  else if(rotIdx===2)drawDonut('donut-canvas',d.lender_mix,'FY26 Setts');
   else if(rotIdx===3)drawLeadPipeline(d.lead_pipeline);
-  else drawLodgementPipeline(d.lodgement_pipeline);
+  else if(rotIdx===4)drawLodgementPipeline(d.lodgement_pipeline);
+  else drawDonut('donut-canvas-book',d.lender_mix_book,'Loan Book');
 }
 
 function go(){
@@ -1053,9 +1131,10 @@ window.addEventListener('resize',function(){
   if(!D)return;
   if(rotIdx===0)drawGauge(D.all_time_settlements);
   else if(rotIdx===1)drawChart(D.history);
-  else if(rotIdx===2)drawDonut(D.lender_mix);
+  else if(rotIdx===2)drawDonut('donut-canvas',D.lender_mix,'FY26 Setts');
   else if(rotIdx===3)drawLeadPipeline(D.lead_pipeline);
-  else drawLodgementPipeline(D.lodgement_pipeline);
+  else if(rotIdx===4)drawLodgementPipeline(D.lodgement_pipeline);
+  else drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');
 });
 
 // Fullscreen — click, Enter, Space, F, or F11 on TV remote
@@ -1137,8 +1216,9 @@ def main():
     leave, leave_title = read_leave(path, cur_full)
     print(f'  ✓ Leave entries: {len(leave)} ({leave_title})')
 
-    lender_mix = read_lender_mix(path)
-    print(f'  ✓ Lender mix: {len(lender_mix)} lenders')
+    lender_mix, lender_mix_book = read_lender_mix(path)
+    print(f'  ✓ Lender mix (FY26 settlements): {len(lender_mix)} entries')
+    print(f'  ✓ Lender mix (Loan Book):         {len(lender_mix_book)} entries')
 
     lead_pipeline = read_lead_pipeline(path)
     print(f'  ✓ Lead pipeline: {len(lead_pipeline)} weeks')
@@ -1146,7 +1226,9 @@ def main():
     lodgement_pipeline = read_lodgement_pipeline(path)
     print(f'  ✓ Lodgement pipeline: {len(lodgement_pipeline)} weeks')
 
-    data = build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads, leave, leave_title, all_time, history, lender_mix, lead_pipeline, lodgement_pipeline)
+    data = build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_leads,
+                      leave, leave_title, all_time, history,
+                      lender_mix, lender_mix_book, lead_pipeline, lodgement_pipeline)
     print(f'  ✓ YTD: ${data["ytd_settlements"]:,.0f} | Pace: {data["pace_status"]}')
 
     try:
