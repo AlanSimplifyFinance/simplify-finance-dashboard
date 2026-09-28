@@ -16,9 +16,9 @@ jobs:
       - run: pip install requests msal openpyxl pandas
       - run: python generate_dashboard.py
         env:
-          AZURE_TENANT_ID: ${{ secrets.TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          GH_TOKEN: ${{ secrets.GIST_TOKEN }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
           PAGES_REPO: ${{ secrets.PAGES_REPO }}
