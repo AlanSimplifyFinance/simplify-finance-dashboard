@@ -106,7 +106,7 @@ def download_excel_cloud():
         f'{base}/lists/Documents/drive/root:/Operations/Dashboards/Business Data.xlsx',
     ]
 
-    best_path, best_sheets = None, []
+    best_path, best_sheets, best_modified = None, [], 'unknown'
 
     for meta_url in meta_paths:
         try:
@@ -140,7 +140,7 @@ def download_excel_cloud():
             if REQUIRED_SHEETS.issubset(set(sheets)):
                 if best_path and best_path != p:
                     best_path.unlink(missing_ok=True)
-                best_path, best_sheets = p, sheets
+                best_path, best_sheets, best_modified = p, sheets, modified
                 break
             else:
                 missing = sorted(REQUIRED_SHEETS - set(sheets))
@@ -156,7 +156,7 @@ def download_excel_cloud():
     if best_path:
         if not REQUIRED_SHEETS.issubset(set(best_sheets)):
             print(f'  ⚠ Warning: best file missing sheets {sorted(REQUIRED_SHEETS - set(best_sheets))}')
-        return best_path
+        return best_path, best_modified
 
     # Last resort: search across SharePoint
     print('  Searching SharePoint for Business Data.xlsx ...')
@@ -180,7 +180,7 @@ def download_excel_cloud():
                     p, sheets = (_try_download(dl_url, use_auth=False) if dl_url else (None, None))
                 if p:
                     print(f'    Sheets: {sheets}')
-                    return p
+                    return p, modified
 
     raise FileNotFoundError('Cannot find Business Data.xlsx on SharePoint — check the file path and permissions.')
 
@@ -614,6 +614,32 @@ def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_
 # ── Gist ────────────────────────────────────────────────────────────────────────
 def push_gist(data, cfg):
     h = {'Authorization':f'token {cfg["token"]}','Accept':'application/vnd.github.v3+json'}
+
+    # ── Staleness guard ────────────────────────────────────────────────────────
+    # Compare this file's SharePoint timestamp against the one stored in the
+    # current Gist. If we're about to push data from an OLDER file, skip the
+    # update so the Gist (and TV) always hold the most recent data seen.
+    new_ts = data.get('_sp_modified', '')
+    if new_ts and new_ts != 'unknown':
+        try:
+            r_cur = requests.get(f'https://api.github.com/gists/{cfg["gist_id"]}',
+                                 headers=h, timeout=30)
+            if r_cur.status_code == 200:
+                cur_file = r_cur.json().get('files', {}).get('dashboard_data.json', {})
+                cur_content = cur_file.get('content', '')
+                if cur_content:
+                    cur_data = json.loads(cur_content)
+                    cur_ts = cur_data.get('_sp_modified', '')
+                    if cur_ts and cur_ts != 'unknown' and new_ts < cur_ts:
+                        print(f'  ⚠ Stale SharePoint file detected!')
+                        print(f'    Current Gist was from: {cur_ts}')
+                        print(f'    This file is from:     {new_ts}')
+                        print(f'    Skipping update — TV keeps the current (newer) data.')
+                        return
+                    print(f'  ✓ Freshness check passed ({new_ts} >= {cur_ts or "none"})')
+        except Exception as e:
+            print(f'  ⚠ Staleness check failed ({e}) — proceeding with update')
+
     r = requests.patch(f'https://api.github.com/gists/{cfg["gist_id"]}', headers=h,
         json={'files':{'dashboard_data.json':{'content':json.dumps(data,indent=2)}}},timeout=30)
     r.raise_for_status(); print('  ✓ Gist updated')
@@ -1267,10 +1293,10 @@ def main():
     # ── Excel source ────────────────────────────────────────────────────────────
     if cloud:
         try:
-            path = download_excel_cloud()
+            path, sp_modified = download_excel_cloud()
             file_hash = hashlib.md5(Path(path).read_bytes()).hexdigest()[:8]
             file_size = Path(path).stat().st_size
-            print(f'  ✓ Downloaded: {file_size:,} bytes | hash={file_hash}')
+            print(f'  ✓ Downloaded: {file_size:,} bytes | hash={file_hash} | modified={sp_modified}')
         except Exception as e:
             print(f'  ✗ SharePoint download: {e}'); return 1
     else:
@@ -1324,6 +1350,9 @@ def main():
                       leave, leave_title, all_time, history,
                       lender_mix, lender_mix_book, lead_pipeline, lodgement_pipeline)
     print(f'  ✓ YTD: ${data["ytd_settlements"]:,.0f} | Pace: {data["pace_status"]}')
+    # Tag the data with the SharePoint file timestamp — used as staleness guard in push_gist
+    if cloud:
+        data['_sp_modified'] = sp_modified
 
     try:
         push_gist(data, gist_cfg)
