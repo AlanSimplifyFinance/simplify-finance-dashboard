@@ -317,13 +317,13 @@ function drawDonut(canvasId, lenders, centreLabel){
   var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341','#ff7b72','#ffa657'];
   var total=lenders.reduce(function(s,l){return s+l.amount;},0);
   if(total<=0)return;
-  var fs=Math.max(11,Math.round(cv.width*0.028));
-  var legRows=Math.ceil(lenders.length/2);
-  var legH=legRows*Math.round(fs*1.8)+fs;
-  var donutH=cv.height-legH-8;
-  var cx=cv.width/2;
-  var r=Math.min(cx*0.85,donutH/2*0.88);
-  var cy=donutH/2+4;
+  // Layout: donut on left (~62%), legend on right (~38%)
+  var fs=Math.max(10,Math.round(cv.width*0.022));
+  var legW=Math.round(cv.width*0.38);
+  var donutW=cv.width-legW;
+  var cx=donutW/2;
+  var r=Math.min(cx*0.9,cv.height/2*0.9);
+  var cy=cv.height/2;
   var startAngle=-Math.PI/2;
   // Segments
   lenders.forEach(function(l,i){
@@ -333,7 +333,6 @@ function drawDonut(canvasId, lenders, centreLabel){
     ctx.arc(cx,cy,r,startAngle,startAngle+sweep);
     ctx.closePath();
     ctx.fillStyle=colors[i%colors.length];
-    ctx.globalAlpha=1;
     ctx.fill();
     startAngle+=sweep;
   });
@@ -345,27 +344,25 @@ function drawDonut(canvasId, lenders, centreLabel){
   // Centre: label + total
   ctx.textAlign='center';
   ctx.fillStyle='#7d8590';
-  ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';
-  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.6));
+  ctx.font=Math.round(fs*0.8)+'px Inter,sans-serif';
+  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.7));
   ctx.fillStyle='#f0f6fc';
-  ctx.font='bold '+Math.round(fs*1.35)+'px Inter,sans-serif';
-  ctx.fillText(fm(total),cx,cy+Math.round(fs*0.65));
-  // Legend — 2 columns
-  var ly=donutH+fs*0.5;
-  var swW=Math.round(fs*0.75),swH=Math.round(fs*0.65),gap=5;
-  var colW=Math.floor(cv.width/2);
-  ctx.font=Math.round(fs*0.85)+'px Inter,sans-serif';
+  ctx.font='bold '+Math.round(fs*1.3)+'px Inter,sans-serif';
+  ctx.fillText(fm(total),cx,cy+Math.round(fs*0.75));
+  // Legend — single column on right, vertically centred
+  var swW=Math.round(fs*0.7),swH=Math.round(fs*0.6),gap=4;
+  var rowH=Math.round(fs*1.5);
+  var legX=donutW+6;
+  var startY=Math.max(4,Math.round((cv.height-lenders.length*rowH)/2))+Math.round(fs*0.6);
+  ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';
   lenders.forEach(function(l,i){
-    var ci=i%2, ri=Math.floor(i/2);
-    var lx=ci*colW+8;
-    var lly=ly+ri*Math.round(fs*1.8);
+    var lly=startY+i*rowH;
     var pct=(l.amount/total*100).toFixed(1)+'%';
     ctx.fillStyle=colors[i%colors.length];
-    ctx.globalAlpha=1;
-    ctx.fillRect(lx,lly,swW,swH);
+    ctx.fillRect(legX,lly-swH+2,swW,swH);
     ctx.fillStyle='#c9d1d9';
     ctx.textAlign='left';
-    ctx.fillText(l.name+'  '+pct,lx+swW+gap,lly+swH);
+    ctx.fillText(l.name+'  '+pct,legX+swW+gap,lly);
   });
 }
 
