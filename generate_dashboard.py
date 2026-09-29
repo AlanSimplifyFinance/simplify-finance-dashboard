@@ -797,7 +797,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
 
 </div>
 <script>
-var GIST='GIST_URL_PLACEHOLDER';
+var GIST_ID='GIST_URL_PLACEHOLDER';
 var ANN=330000000;
 var rotIdx=0, D=null;
 
@@ -1153,9 +1153,27 @@ function update(d){
 }
 
 function go(){
-  var x=new XMLHttpRequest();x.open('GET',GIST+'?t='+Date.now(),true);
-  x.onload=function(){if(x.status===200){try{update(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
-  x.send();
+  // Fetch via GitHub API (not raw CDN) — API is never cached by GitHub's CDN,
+  // so we always get the latest Gist content without stale-cache issues.
+  fetch('https://api.github.com/gists/'+GIST_ID,{cache:'no-store',headers:{'Accept':'application/vnd.github.v3+json'}})
+    .then(function(r){
+      if(r.status===403||r.status===429){console.warn('GitHub API rate limited — will retry next interval');return null;}
+      if(!r.ok){console.warn('Gist fetch error: '+r.status);return null;}
+      return r.json();
+    })
+    .then(function(g){
+      if(!g)return;
+      var f=g.files&&g.files['dashboard_data.json'];
+      if(!f){console.warn('dashboard_data.json not found in gist');return;}
+      var content=f.content;
+      if(!content&&f.truncated){
+        // Content too large — fall back to raw_url (commit-specific, so no CDN stale issue)
+        fetch(f.raw_url,{cache:'no-store'}).then(function(r){return r.json();}).then(update).catch(console.error);
+        return;
+      }
+      try{update(JSON.parse(content));}catch(e){console.error(e);}
+    })
+    .catch(function(e){console.error('Gist fetch failed:',e);});
 }
 
 window.addEventListener('resize',function(){
@@ -1184,7 +1202,7 @@ document.addEventListener('keydown',function(e){
 go();
 setInterval(go,60000);
 setInterval(rotate,60000);
-</script></body></html>""".replace('GIST_URL_PLACEHOLDER', gist_url)
+</script></body></html>""".replace('GIST_URL_PLACEHOLDER', gist_url)  # gist_url is now the gist ID
 
 # ── Main ────────────────────────────────────────────────────────────────────────
 def main():
@@ -1267,7 +1285,7 @@ def main():
     except Exception as e:
         print(f'  ✗ Gist: {e}'); return 1
 
-    html = build_html(gist_cfg['raw_url'])
+    html = build_html(gist_cfg['gist_id'])  # pass gist ID so HTML uses API (not cached CDN)
     try:
         deploy_html(html, pages_cfg)
     except Exception as e:
