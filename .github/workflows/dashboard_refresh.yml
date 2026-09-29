@@ -23,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas requests openpyxl zoneinfo --quiet
+          pip install pandas requests openpyxl --quiet
 
       - name: Run dashboard generator
         env:
