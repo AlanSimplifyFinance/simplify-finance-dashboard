@@ -63,24 +63,19 @@ def get_graph_token():
 
 def download_excel_cloud():
     """Download Business Data.xlsx from SharePoint via Graph API, return local temp path.
-    Tries multiple known paths and searches as fallback. Prefers file with all 9 sheets."""
+    Uses file metadata to get a fresh direct download URL (bypasses SharePoint caching).
+    Logs lastModifiedDateTime so we can confirm the file version is current."""
     token = get_graph_token()
     h = {'Authorization': f'Bearer {token}'}
     base = 'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
 
-    # Candidate paths (ordered by likelihood of being correct)
-    candidates = [
-        f'{base}/lists/Operations/drive/root:/Dashboards/Business Data.xlsx:/content',
-        f'{base}/drive/root:/Operations/Dashboards/Business Data.xlsx:/content',
-        f'{base}/lists/Documents/drive/root:/Operations/Dashboards/Business Data.xlsx:/content',
-    ]
-
     REQUIRED_SHEETS = {'Year On Year Stats', 'Leave', 'CreditTeam'}
 
-    def _try_download(url):
-        """Attempt download, return (path, sheet_names) or (None, None)."""
+    def _try_download(url, use_auth=True):
+        """Download from url, return (path, sheet_names) or (None, None)."""
         try:
-            r = requests.get(url, headers=h, timeout=60)
+            headers = h if use_auth else {}
+            r = requests.get(url, headers=headers, timeout=60)
             if r.status_code != 200:
                 return None, None
             tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
@@ -95,32 +90,56 @@ def download_excel_cloud():
         except Exception:
             return None, None
 
-    best_path, best_sheets, best_url = None, [], None
-    for url in candidates:
-        p, sheets = _try_download(url)
-        if p is None:
-            continue
-        short = url.replace(base, '')
-        print(f'  ✓ Downloaded from: {short}')
-        print(f'    Sheets ({len(sheets)}): {sheets}')
-        if REQUIRED_SHEETS.issubset(set(sheets)):
-            # Prefer this one — has Leave and all critical sheets
-            if best_path and best_path != p:
-                best_path.unlink(missing_ok=True)
-            best_path, best_sheets, best_url = p, sheets, url
-            break  # Found a complete file — no need to try more
-        else:
-            missing = sorted(REQUIRED_SHEETS - set(sheets))
-            print(f'    ✗ Missing sheets: {missing} — trying next path')
-            if best_path is None:
-                best_path, best_sheets, best_url = p, sheets, url  # keep as fallback
+    # Candidate metadata paths — fetch metadata first to get a fresh download URL
+    # and to confirm the file's last-modified time (detects stale cached copies)
+    meta_paths = [
+        f'{base}/drive/root:/Operations/Dashboards/Business Data.xlsx',
+        f'{base}/lists/Operations/drive/root:/Dashboards/Business Data.xlsx',
+        f'{base}/lists/Documents/drive/root:/Operations/Dashboards/Business Data.xlsx',
+    ]
+
+    best_path, best_sheets = None, []
+
+    for meta_url in meta_paths:
+        try:
+            r = requests.get(meta_url, headers=h, timeout=30)
+            if r.status_code != 200:
+                continue
+            item = r.json()
+            modified = item.get('lastModifiedDateTime', 'unknown')
+            short = meta_url.replace(base, '')
+            print(f'  Found file at: {short}')
+            print(f'  Last modified on SharePoint: {modified}')
+            # Use @microsoft.graph.downloadUrl — a fresh pre-signed URL that bypasses cache
+            dl_url = item.get('@microsoft.graph.downloadUrl')
+            if not dl_url:
+                # Fallback: append :/content to get download
+                dl_url = meta_url + ':/content'
+                p, sheets = _try_download(dl_url, use_auth=True)
             else:
-                p.unlink(missing_ok=True)
+                p, sheets = _try_download(dl_url, use_auth=False)
+            if p is None:
+                continue
+            print(f'  Sheets ({len(sheets)}): {sheets}')
+            if REQUIRED_SHEETS.issubset(set(sheets)):
+                if best_path and best_path != p:
+                    best_path.unlink(missing_ok=True)
+                best_path, best_sheets = p, sheets
+                break
+            else:
+                missing = sorted(REQUIRED_SHEETS - set(sheets))
+                print(f'  ✗ Missing sheets: {missing} — trying next path')
+                if best_path is None:
+                    best_path, best_sheets = p, sheets
+                else:
+                    p.unlink(missing_ok=True)
+        except Exception as e:
+            print(f'  Error checking {meta_url.replace(base, "")}: {e}')
+            continue
 
     if best_path:
         if not REQUIRED_SHEETS.issubset(set(best_sheets)):
-            print(f'  ⚠ Warning: best file is missing sheets {sorted(REQUIRED_SHEETS - set(best_sheets))}')
-            print(f'    The SharePoint file may be an old version. Please re-upload the current Business Data.xlsx.')
+            print(f'  ⚠ Warning: best file missing sheets {sorted(REQUIRED_SHEETS - set(best_sheets))}')
         return best_path
 
     # Last resort: search across SharePoint
@@ -132,11 +151,12 @@ def download_excel_cloud():
         for item in r.json().get('value', []):
             name = item.get('name', '')
             if 'Business Data' in name and name.endswith('.xlsx'):
+                modified = item.get('lastModifiedDateTime', 'unknown')
                 dl_url = item.get('@microsoft.graph.downloadUrl')
                 pref = item.get('parentReference', {}).get('path', '')
-                print(f'    Found: {name} at {pref}')
+                print(f'    Found: {name} at {pref} (modified: {modified})')
                 if dl_url:
-                    p, sheets = _try_download(dl_url)
+                    p, sheets = _try_download(dl_url, use_auth=False)
                     if p:
                         print(f'    Sheets: {sheets}')
                         return p
@@ -421,7 +441,7 @@ def read_lead_pipeline(path):
         tot  = int(safe_num(row.iloc[5]))
         if tot == 0 and bc == 0 and lo == 0: continue
         try:
-            label = pd.to_datetime(week).strftime('%-d %b')
+            label = pd.to_datetime(week, dayfirst=True).strftime('%-d %b')
         except Exception:
             label = str(week)
         rows.append({'week': label, 'bc': bc, 'waiting': wait, 'lo': lo, 'compliance': comp, 'total': tot})
@@ -449,7 +469,7 @@ def read_lodgement_pipeline(path):
         total   = round(safe_num(row.iloc[7]))
         if total == 0: continue
         try:
-            label = pd.to_datetime(week).strftime('%-d %b')
+            label = pd.to_datetime(week, dayfirst=True).strftime('%-d %b')
         except Exception:
             label = str(week)
         rows.append({'week': label, 'lodged': lodged, 'oa': oa, 'pre_approved': preapp,
