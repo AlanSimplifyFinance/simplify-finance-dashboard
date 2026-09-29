@@ -66,7 +66,11 @@ def download_excel_cloud():
     Uses file metadata to get a fresh direct download URL (bypasses SharePoint caching).
     Logs lastModifiedDateTime so we can confirm the file version is current."""
     token = get_graph_token()
-    h = {'Authorization': f'Bearer {token}'}
+    h = {
+        'Authorization': f'Bearer {token}',
+        'Cache-Control': 'no-cache, no-store',
+        'Pragma': 'no-cache',
+    }
     base = 'https://graph.microsoft.com/v1.0/sites/simplifyfin.sharepoint.com'
 
     REQUIRED_SHEETS = {'Year On Year Stats', 'Leave', 'CreditTeam'}
@@ -74,7 +78,11 @@ def download_excel_cloud():
     def _try_download(url, use_auth=True):
         """Download from url, return (path, sheet_names) or (None, None)."""
         try:
-            headers = h if use_auth else {}
+            if use_auth:
+                headers = h
+            else:
+                # Pre-signed URL — no auth header, but still ask for no-cache
+                headers = {'Cache-Control': 'no-cache, no-store', 'Pragma': 'no-cache'}
             r = requests.get(url, headers=headers, timeout=60)
             if r.status_code != 200:
                 return None, None
