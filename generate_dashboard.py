@@ -118,14 +118,22 @@ def download_excel_cloud():
             short = meta_url.replace(base, '')
             print(f'  Found file at: {short}')
             print(f'  Last modified on SharePoint: {modified}')
-            # Use @microsoft.graph.downloadUrl — a fresh pre-signed URL that bypasses cache
-            dl_url = item.get('@microsoft.graph.downloadUrl')
-            if not dl_url:
-                # Fallback: append :/content to get download
-                dl_url = meta_url + ':/content'
-                p, sheets = _try_download(dl_url, use_auth=True)
+            # Use /content via Graph API with Bearer token — bypasses SharePoint CDN cache.
+            # @microsoft.graph.downloadUrl points to Azure Blob Storage which caches
+            # aggressively and ignores Cache-Control headers. The /content endpoint
+            # routes through Microsoft's API servers and respects our no-cache headers.
+            item_id  = item.get('id')
+            drive_id = item.get('parentReference', {}).get('driveId')
+            if item_id and drive_id:
+                content_url = f'https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content'
+                p, sheets = _try_download(content_url, use_auth=True)
             else:
-                p, sheets = _try_download(dl_url, use_auth=False)
+                # Fallback to pre-signed URL if we can't build the content URL
+                dl_url = item.get('@microsoft.graph.downloadUrl')
+                if dl_url:
+                    p, sheets = _try_download(dl_url, use_auth=False)
+                else:
+                    p, sheets = None, None
             if p is None:
                 continue
             print(f'  Sheets ({len(sheets)}): {sheets}')
@@ -160,14 +168,19 @@ def download_excel_cloud():
             name = item.get('name', '')
             if 'Business Data' in name and name.endswith('.xlsx'):
                 modified = item.get('lastModifiedDateTime', 'unknown')
-                dl_url = item.get('@microsoft.graph.downloadUrl')
                 pref = item.get('parentReference', {}).get('path', '')
                 print(f'    Found: {name} at {pref} (modified: {modified})')
-                if dl_url:
-                    p, sheets = _try_download(dl_url, use_auth=False)
-                    if p:
-                        print(f'    Sheets: {sheets}')
-                        return p
+                item_id2  = item.get('id')
+                drive_id2 = item.get('parentReference', {}).get('driveId')
+                if item_id2 and drive_id2:
+                    content_url2 = f'https://graph.microsoft.com/v1.0/drives/{drive_id2}/items/{item_id2}/content'
+                    p, sheets = _try_download(content_url2, use_auth=True)
+                else:
+                    dl_url = item.get('@microsoft.graph.downloadUrl')
+                    p, sheets = (_try_download(dl_url, use_auth=False) if dl_url else (None, None))
+                if p:
+                    print(f'    Sheets: {sheets}')
+                    return p
 
     raise FileNotFoundError('Cannot find Business Data.xlsx on SharePoint — check the file path and permissions.')
 
@@ -321,10 +334,16 @@ def read_leave(path, cur_month_full):
 
     def latest_day_in_string(s):
         """Extract the highest day number from a date string like '28th', '3-5 Oct', etc."""
-        nums = re.findall(r'\b(\d{1,2})\b', str(s))
-        if nums:
-            return max(int(n) for n in nums if 1 <= int(n) <= 31)
-        return None
+        # First try ordinal suffixes: 28th, 3rd, 1st, 2nd
+        ordinals = re.findall(r'(\d{1,2})(?:st|nd|rd|th)', str(s))
+        if ordinals:
+            valid = [int(n) for n in ordinals if 1 <= int(n) <= 31]
+            if valid:
+                return max(valid)
+        # Fall back: any isolated 1-2 digit number (not part of a longer number)
+        nums = re.findall(r'(?<!\d)(\d{1,2})(?!\d)', str(s))
+        valid = [int(n) for n in nums if 1 <= int(n) <= 31]
+        return max(valid) if valid else None
 
     entries = []
     for i in range(1, len(df)):
@@ -344,6 +363,7 @@ def read_leave(path, cur_month_full):
                 try:
                     leave_end = date(today.year, today.month, last_day)
                     if leave_end < today:
+                        print(f'    ↳ Skipping {name} ({dates}) — leave ended {leave_end} (today={today})')
                         continue  # Leave already ended — exclude from display
                 except ValueError:
                     pass  # Invalid date (e.g. day 31 in a short month) — include to be safe
@@ -1248,6 +1268,9 @@ def main():
     if cloud:
         try:
             path = download_excel_cloud()
+            file_hash = hashlib.md5(Path(path).read_bytes()).hexdigest()[:8]
+            file_size = Path(path).stat().st_size
+            print(f'  ✓ Downloaded: {file_size:,} bytes | hash={file_hash}')
         except Exception as e:
             print(f'  ✗ SharePoint download: {e}'); return 1
     else:
@@ -1282,7 +1305,10 @@ def main():
     print(f'  ✓ Lead gen: {broker_calls} calls | {broker_connections} connections | {broker_leads} leads')
 
     leave, leave_title = read_leave(path, cur_full)
-    print(f'  ✓ Leave entries: {len(leave)} ({leave_title})')
+    if leave:
+        print(f'  ✓ Leave entries: {len(leave)} ({leave_title}): {[e["name"] for e in leave]}')
+    else:
+        print(f'  ✓ Leave entries: 0 — none current ({leave_title})')
 
     lender_mix, lender_mix_book = read_lender_mix(path)
     print(f'  ✓ Lender mix (FY26 settlements): {len(lender_mix)} entries')
