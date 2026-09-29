@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Simplify Finance Dashboard Generator — FY 2026-27 Full Redesign"""
 
-import io, os, json, hashlib, base64, calendar, tempfile
+import io, os, json, hashlib, base64, calendar, tempfile, re
 import pandas as pd, requests
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 SYDNEY = ZoneInfo('Australia/Sydney')
 from pathlib import Path
@@ -316,6 +316,16 @@ def read_leave(path, cur_month_full):
         pass
 
     # Rows 1+: Name | Dates — only include staff with actual dates
+    # Also filter out leave that has already ended (date in the past)
+    today = datetime.now(SYDNEY).date()
+
+    def latest_day_in_string(s):
+        """Extract the highest day number from a date string like '28th', '3-5 Oct', etc."""
+        nums = re.findall(r'\b(\d{1,2})\b', str(s))
+        if nums:
+            return max(int(n) for n in nums if 1 <= int(n) <= 31)
+        return None
+
     entries = []
     for i in range(1, len(df)):
         row = df.iloc[i]
@@ -328,6 +338,15 @@ def read_leave(path, cur_month_full):
             if d and d.lower() != 'nan':
                 dates = d
         if dates:  # only show staff who have leave entered
+            # Check if leave has already ended — if so, skip it
+            last_day = latest_day_in_string(dates)
+            if last_day is not None:
+                try:
+                    leave_end = date(today.year, today.month, last_day)
+                    if leave_end < today:
+                        continue  # Leave already ended — exclude from display
+                except ValueError:
+                    pass  # Invalid date (e.g. day 31 in a short month) — include to be safe
             entries.append({'name': name, 'dates': dates})
     return entries, title
 
