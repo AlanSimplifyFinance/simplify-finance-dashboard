@@ -30,6 +30,8 @@ jobs:
           AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          GITHUB_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN:            ${{ secrets.GH_TOKEN }}
+          GIST_ID:             ${{ secrets.GIST_ID }}
+          PAGES_REPO:          ${{ secrets.PAGES_REPO }}
         run: |
           python generate_dashboard.py
