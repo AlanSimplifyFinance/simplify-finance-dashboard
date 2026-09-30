@@ -1269,7 +1269,9 @@ document.addEventListener('keydown',function(e){
 });
 
 go();
-setInterval(go,60000);
+// Data refreshes every 5 min — GitHub API unauthenticated limit is 60 req/hr;
+// 60-second polling hits that ceiling. Data only changes every 15 min anyway.
+setInterval(go,300000);
 setInterval(rotate,60000);
 
 // Hard-reload every 10 minutes so the TV always runs the latest HTML from GitHub Pages.
