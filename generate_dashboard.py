@@ -664,6 +664,10 @@ def deploy_html(html, cfg):
 def build_html(gist_url):
     return r"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Simplify Finance | FY 2026-27</title>
+<!-- Force browser to never cache this page — TV must always load fresh HTML from GitHub Pages -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:20px}
@@ -1267,6 +1271,14 @@ document.addEventListener('keydown',function(e){
 go();
 setInterval(go,60000);
 setInterval(rotate,60000);
+
+// Hard-reload every 10 minutes so the TV always runs the latest HTML from GitHub Pages.
+// A soft reload can serve a browser-cached old copy — we force a brand-new page load
+// by changing the URL with a timestamp query param (browser treats it as a different URL).
+setInterval(function(){
+  var base=window.location.href.split('?')[0];
+  window.location.replace(base+'?r='+Date.now());
+},600000);
 </script></body></html>""".replace('GIST_URL_PLACEHOLDER', gist_url)  # gist_url is now the gist ID
 
 # ── Main ────────────────────────────────────────────────────────────────────────
