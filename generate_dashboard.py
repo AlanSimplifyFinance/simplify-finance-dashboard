@@ -317,20 +317,39 @@ def read_leave(path, cur_month_full):
     if len(df) == 0:
         return [], cur_month_full + ' Leave'
 
+    today = datetime.now(SYDNEY).date()
+
     # Row 0: col 0 = label ("Names"), col 1 = date object → derive month title
+    # IMPORTANT: also capture the sheet's own month/year so day numbers like "28th"
+    # are interpreted in the correct month, not the current calendar month.
     title = cur_month_full + ' Leave'
+    sheet_date = None
     try:
         date_cell = df.iloc[0, 1]
         if hasattr(date_cell, 'strftime'):
             title = date_cell.strftime('%B') + ' Leave'
+            sheet_date = date_cell.date() if hasattr(date_cell, 'date') else date_cell.to_pydatetime().date()
         elif str(date_cell) not in ('nan', ''):
-            title = pd.to_datetime(date_cell).strftime('%B') + ' Leave'
+            parsed = pd.to_datetime(date_cell)
+            title = parsed.strftime('%B') + ' Leave'
+            sheet_date = parsed.date()
     except Exception:
         pass
 
-    # Rows 1+: Name | Dates — only include staff with actual dates
-    # Also filter out leave that has already ended (date in the past)
-    today = datetime.now(SYDNEY).date()
+    # If the leave sheet belongs to a previous month, every entry in it has already
+    # ended — skip the whole sheet rather than misinterpreting day numbers.
+    if sheet_date is not None:
+        sheet_month_start = date(sheet_date.year, sheet_date.month, 1)
+        today_month_start = date(today.year, today.month, 1)
+        if sheet_month_start < today_month_start:
+            print(f'    ↳ Leave sheet is from {sheet_date.strftime("%B %Y")} — all entries are past, returning none')
+            return [], title
+
+    # Use the sheet's month for date comparisons (not the current calendar month).
+    # e.g. if the sheet says "28th" in a September sheet and today is October,
+    # we want Sep 28 (past) not Oct 28 (future).
+    ref_year  = sheet_date.year  if sheet_date else today.year
+    ref_month = sheet_date.month if sheet_date else today.month
 
     def latest_day_in_string(s):
         """Extract the highest day number from a date string like '28th', '3-5 Oct', etc."""
@@ -361,7 +380,7 @@ def read_leave(path, cur_month_full):
             last_day = latest_day_in_string(dates)
             if last_day is not None:
                 try:
-                    leave_end = date(today.year, today.month, last_day)
+                    leave_end = date(ref_year, ref_month, last_day)
                     if leave_end < today:
                         print(f'    ↳ Skipping {name} ({dates}) — leave ended {leave_end} (today={today})')
                         continue  # Leave already ended — exclude from display
