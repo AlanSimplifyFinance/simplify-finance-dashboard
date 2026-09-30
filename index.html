@@ -1,9 +1,5 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Simplify Finance | FY 2026-27</title>
-<!-- Force browser to never cache this page — TV must always load fresh HTML from GitHub Pages -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:20px}
@@ -202,7 +198,7 @@ canvas{flex:1;width:100%;min-height:0;display:block}
 
 </div>
 <script>
-var GIST_ID='a1fff041bf6e739a266686272058e182';
+var GIST='https://gist.githubusercontent.com/AlanSimplifyFinance/a1fff041bf6e739a266686272058e182/raw/dashboard_data.json';
 var ANN=330000000;
 var rotIdx=0, D=null;
 
@@ -321,13 +317,13 @@ function drawDonut(canvasId, lenders, centreLabel){
   var colors=['#00e8c4','#00b4d8','#3fb950','#d29922','#f85149','#a371f7','#fb8f44','#79c0ff','#56d364','#e3b341','#ff7b72','#ffa657'];
   var total=lenders.reduce(function(s,l){return s+l.amount;},0);
   if(total<=0)return;
-  // Layout: donut on left (~62%), legend on right (~38%)
-  var fs=Math.max(10,Math.round(cv.width*0.022));
-  var legW=Math.round(cv.width*0.38);
-  var donutW=cv.width-legW;
-  var cx=donutW/2;
-  var r=Math.min(cx*0.9,cv.height/2*0.9);
-  var cy=cv.height/2;
+  var fs=Math.max(11,Math.round(cv.width*0.028));
+  var legRows=Math.ceil(lenders.length/2);
+  var legH=legRows*Math.round(fs*1.8)+fs;
+  var donutH=cv.height-legH-8;
+  var cx=cv.width/2;
+  var r=Math.min(cx*0.85,donutH/2*0.88);
+  var cy=donutH/2+4;
   var startAngle=-Math.PI/2;
   // Segments
   lenders.forEach(function(l,i){
@@ -337,6 +333,7 @@ function drawDonut(canvasId, lenders, centreLabel){
     ctx.arc(cx,cy,r,startAngle,startAngle+sweep);
     ctx.closePath();
     ctx.fillStyle=colors[i%colors.length];
+    ctx.globalAlpha=1;
     ctx.fill();
     startAngle+=sweep;
   });
@@ -348,25 +345,27 @@ function drawDonut(canvasId, lenders, centreLabel){
   // Centre: label + total
   ctx.textAlign='center';
   ctx.fillStyle='#7d8590';
-  ctx.font=Math.round(fs*0.8)+'px Inter,sans-serif';
-  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.7));
+  ctx.font=Math.round(fs*0.75)+'px Inter,sans-serif';
+  ctx.fillText(centreLabel||'Total',cx,cy-Math.round(fs*0.6));
   ctx.fillStyle='#f0f6fc';
-  ctx.font='bold '+Math.round(fs*1.3)+'px Inter,sans-serif';
-  ctx.fillText(fm(total),cx,cy+Math.round(fs*0.75));
-  // Legend — single column on right, vertically centred
-  var swW=Math.round(fs*0.7),swH=Math.round(fs*0.6),gap=4;
-  var rowH=Math.round(fs*1.5);
-  var legX=donutW+6;
-  var startY=Math.max(4,Math.round((cv.height-lenders.length*rowH)/2))+Math.round(fs*0.6);
-  ctx.font=Math.round(fs*0.82)+'px Inter,sans-serif';
+  ctx.font='bold '+Math.round(fs*1.35)+'px Inter,sans-serif';
+  ctx.fillText(fm(total),cx,cy+Math.round(fs*0.65));
+  // Legend — 2 columns
+  var ly=donutH+fs*0.5;
+  var swW=Math.round(fs*0.75),swH=Math.round(fs*0.65),gap=5;
+  var colW=Math.floor(cv.width/2);
+  ctx.font=Math.round(fs*0.85)+'px Inter,sans-serif';
   lenders.forEach(function(l,i){
-    var lly=startY+i*rowH;
+    var ci=i%2, ri=Math.floor(i/2);
+    var lx=ci*colW+8;
+    var lly=ly+ri*Math.round(fs*1.8);
     var pct=(l.amount/total*100).toFixed(1)+'%';
     ctx.fillStyle=colors[i%colors.length];
-    ctx.fillRect(legX,lly-swH+2,swW,swH);
+    ctx.globalAlpha=1;
+    ctx.fillRect(lx,lly,swW,swH);
     ctx.fillStyle='#c9d1d9';
     ctx.textAlign='left';
-    ctx.fillText(l.name+'  '+pct,legX+swW+gap,lly);
+    ctx.fillText(l.name+'  '+pct,lx+swW+gap,lly+swH);
   });
 }
 
@@ -558,27 +557,9 @@ function update(d){
 }
 
 function go(){
-  // Fetch via GitHub API (not raw CDN) — API is never cached by GitHub's CDN,
-  // so we always get the latest Gist content without stale-cache issues.
-  fetch('https://api.github.com/gists/'+GIST_ID,{cache:'no-store',headers:{'Accept':'application/vnd.github.v3+json'}})
-    .then(function(r){
-      if(r.status===403||r.status===429){console.warn('GitHub API rate limited — will retry next interval');return null;}
-      if(!r.ok){console.warn('Gist fetch error: '+r.status);return null;}
-      return r.json();
-    })
-    .then(function(g){
-      if(!g)return;
-      var f=g.files&&g.files['dashboard_data.json'];
-      if(!f){console.warn('dashboard_data.json not found in gist');return;}
-      var content=f.content;
-      if(!content&&f.truncated){
-        // Content too large — fall back to raw_url (commit-specific, so no CDN stale issue)
-        fetch(f.raw_url,{cache:'no-store'}).then(function(r){return r.json();}).then(update).catch(console.error);
-        return;
-      }
-      try{update(JSON.parse(content));}catch(e){console.error(e);}
-    })
-    .catch(function(e){console.error('Gist fetch failed:',e);});
+  var x=new XMLHttpRequest();x.open('GET',GIST+'?t='+Date.now(),true);
+  x.onload=function(){if(x.status===200){try{update(JSON.parse(x.responseText))}catch(e){console.error(e)}}};
+  x.send();
 }
 
 window.addEventListener('resize',function(){
@@ -605,16 +586,6 @@ document.addEventListener('keydown',function(e){
 });
 
 go();
-// Data refreshes every 5 min — GitHub API unauthenticated limit is 60 req/hr;
-// 60-second polling hits that ceiling. Data only changes every 15 min anyway.
-setInterval(go,300000);
+setInterval(go,60000);
 setInterval(rotate,60000);
-
-// Hard-reload every 10 minutes so the TV always runs the latest HTML from GitHub Pages.
-// A soft reload can serve a browser-cached old copy — we force a brand-new page load
-// by changing the URL with a timestamp query param (browser treats it as a different URL).
-setInterval(function(){
-  var base=window.location.href.split('?')[0];
-  window.location.replace(base+'?r='+Date.now());
-},600000);
 </script></body></html>
