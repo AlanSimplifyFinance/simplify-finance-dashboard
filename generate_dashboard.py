@@ -98,91 +98,112 @@ def download_excel_cloud():
         except Exception:
             return None, None
 
-    # Candidate metadata paths — fetch metadata first to get a fresh download URL
-    # and to confirm the file's last-modified time (detects stale cached copies)
-    meta_paths = [
-        f'{base}/drive/root:/Operations/Dashboards/Business Data.xlsx',
-        f'{base}/lists/Operations/drive/root:/Dashboards/Business Data.xlsx',
-        f'{base}/lists/Documents/drive/root:/Operations/Dashboards/Business Data.xlsx',
-    ]
+    # ── Step 1: Find every SharePoint site this app can see ──────────────────
+    # The file lives in a Communications Site ("Communication site - Operations"),
+    # NOT in the root site drive. We must search across ALL sites.
+    all_candidates = []   # list of (modified_dt, item_id, drive_id, location_label)
+
+    def _collect_item(item, label):
+        """Pull item_id/drive_id from a Graph item dict and add to candidates."""
+        modified = item.get('lastModifiedDateTime', 'unknown')
+        item_id  = item.get('id')
+        drive_id = item.get('parentReference', {}).get('driveId')
+        name     = item.get('name', '')
+        if 'Business Data' not in name or not name.endswith('.xlsx'):
+            return
+        if item_id and drive_id:
+            all_candidates.append((modified, item_id, drive_id, label))
+            print(f'  Found candidate: {name} at {label} (modified: {modified})')
+
+    # Fetch all sites (paginate if needed)
+    sites = []
+    sites_url = 'https://graph.microsoft.com/v1.0/sites?$select=id,name,webUrl&$top=50'
+    while sites_url:
+        try:
+            rs = requests.get(sites_url, headers=h, timeout=30)
+            if rs.status_code != 200:
+                print(f'  ⚠ Sites list returned {rs.status_code}')
+                break
+            body = rs.json()
+            sites.extend(body.get('value', []))
+            sites_url = body.get('@odata.nextLink')
+        except Exception as e:
+            print(f'  ⚠ Sites list error: {e}')
+            break
+
+    # Always include root site
+    sites.append({'id': 'root', 'name': 'root', 'webUrl': 'simplifyfin.sharepoint.com'})
+    print(f'  Searching {len(sites)} SharePoint site(s) for Business Data.xlsx ...')
+
+    for site in sites:
+        site_id  = site.get('id', 'root')
+        site_url = site.get('webUrl', '')
+        site_nm  = site.get('name', site_id)
+
+        # Try the known folder path first
+        for folder_path in [
+            'Dashboards/Business Data.xlsx',
+            'Operations/Dashboards/Business Data.xlsx',
+            'Documents/Dashboards/Business Data.xlsx',
+        ]:
+            if site_id == 'root':
+                url = f'{base}/drive/root:/{folder_path}'
+            else:
+                url = f'https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root:/{folder_path}'
+            try:
+                r = requests.get(url, headers=h, timeout=15)
+                if r.status_code == 200:
+                    _collect_item(r.json(), f'{site_nm}/{folder_path}')
+            except Exception:
+                pass
+
+        # Also search within each site's drive
+        if site_id == 'root':
+            search_url = f"{base}/drive/root/search(q='Business+Data')"
+        else:
+            search_url = f"https://graph.microsoft.com/v1.0/sites/{site_id}/drive/root/search(q='Business+Data')"
+        try:
+            r = requests.get(search_url, headers=h, timeout=20)
+            if r.status_code == 200:
+                for item in r.json().get('value', []):
+                    pref = item.get('parentReference', {}).get('path', '')
+                    _collect_item(item, f'{site_nm} (search): {pref}')
+        except Exception:
+            pass
+
+    if not all_candidates:
+        raise FileNotFoundError(
+            'Cannot find Business Data.xlsx on SharePoint — searched all sites. '
+            'Check permissions or file location.')
+
+    # ── Step 2: Pick the most recently modified candidate ─────────────────────
+    # Sort by ISO timestamp string (UTC, so string sort == chronological sort)
+    all_candidates.sort(key=lambda x: x[0], reverse=True)
+    print(f'  {len(all_candidates)} candidate(s) found — picking most recent')
 
     best_path, best_sheets, best_modified = None, [], 'unknown'
-
-    for meta_url in meta_paths:
-        try:
-            r = requests.get(meta_url, headers=h, timeout=30)
-            if r.status_code != 200:
-                continue
-            item = r.json()
-            modified = item.get('lastModifiedDateTime', 'unknown')
-            short = meta_url.replace(base, '')
-            print(f'  Found file at: {short}')
-            print(f'  Last modified on SharePoint: {modified}')
-            # Use /content via Graph API with Bearer token — bypasses SharePoint CDN cache.
-            # @microsoft.graph.downloadUrl points to Azure Blob Storage which caches
-            # aggressively and ignores Cache-Control headers. The /content endpoint
-            # routes through Microsoft's API servers and respects our no-cache headers.
-            item_id  = item.get('id')
-            drive_id = item.get('parentReference', {}).get('driveId')
-            if item_id and drive_id:
-                content_url = f'https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content'
-                p, sheets = _try_download(content_url, use_auth=True)
-            else:
-                # Fallback to pre-signed URL if we can't build the content URL
-                dl_url = item.get('@microsoft.graph.downloadUrl')
-                if dl_url:
-                    p, sheets = _try_download(dl_url, use_auth=False)
-                else:
-                    p, sheets = None, None
-            if p is None:
-                continue
-            print(f'  Sheets ({len(sheets)}): {sheets}')
-            if REQUIRED_SHEETS.issubset(set(sheets)):
-                if best_path and best_path != p:
-                    best_path.unlink(missing_ok=True)
-                best_path, best_sheets, best_modified = p, sheets, modified
-                break
-            else:
-                missing = sorted(REQUIRED_SHEETS - set(sheets))
-                print(f'  ✗ Missing sheets: {missing} — trying next path')
-                if best_path is None:
-                    best_path, best_sheets = p, sheets
-                else:
-                    p.unlink(missing_ok=True)
-        except Exception as e:
-            print(f'  Error checking {meta_url.replace(base, "")}: {e}')
+    for (modified, item_id, drive_id, label) in all_candidates:
+        content_url = f'https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/content'
+        p, sheets = _try_download(content_url, use_auth=True)
+        if p is None:
+            print(f'  ✗ Could not download from {label}')
             continue
+        print(f'  ✓ Downloaded from {label} | modified={modified} | sheets={len(sheets)}')
+        if REQUIRED_SHEETS.issubset(set(sheets)):
+            best_path, best_sheets, best_modified = p, sheets, modified
+            print(f'  ✓ All required sheets present — using this file')
+            break
+        else:
+            missing = sorted(REQUIRED_SHEETS - set(sheets))
+            print(f'  ✗ Missing required sheets: {missing} — skipping')
+            p.unlink(missing_ok=True)
 
-    if best_path:
-        if not REQUIRED_SHEETS.issubset(set(best_sheets)):
-            print(f'  ⚠ Warning: best file missing sheets {sorted(REQUIRED_SHEETS - set(best_sheets))}')
-        return best_path, best_modified
+    if not best_path:
+        raise FileNotFoundError(
+            'Found Business Data.xlsx candidates but none had all required sheets '
+            f'({sorted(REQUIRED_SHEETS)}). Check the file.')
 
-    # Last resort: search across SharePoint
-    print('  Searching SharePoint for Business Data.xlsx ...')
-    r = requests.get(
-        f"{base}/drive/root/search(q='Business Data')",
-        headers=h, timeout=30)
-    if r.status_code == 200:
-        for item in r.json().get('value', []):
-            name = item.get('name', '')
-            if 'Business Data' in name and name.endswith('.xlsx'):
-                modified = item.get('lastModifiedDateTime', 'unknown')
-                pref = item.get('parentReference', {}).get('path', '')
-                print(f'    Found: {name} at {pref} (modified: {modified})')
-                item_id2  = item.get('id')
-                drive_id2 = item.get('parentReference', {}).get('driveId')
-                if item_id2 and drive_id2:
-                    content_url2 = f'https://graph.microsoft.com/v1.0/drives/{drive_id2}/items/{item_id2}/content'
-                    p, sheets = _try_download(content_url2, use_auth=True)
-                else:
-                    dl_url = item.get('@microsoft.graph.downloadUrl')
-                    p, sheets = (_try_download(dl_url, use_auth=False) if dl_url else (None, None))
-                if p:
-                    print(f'    Sheets: {sheets}')
-                    return p, modified
-
-    raise FileNotFoundError('Cannot find Business Data.xlsx on SharePoint — check the file path and permissions.')
+    return best_path, best_modified
 
 def safe_num(v):
     try:
@@ -477,14 +498,34 @@ def read_lender_mix(path):
 
 # ── Brokers (Lead Generation) ─────────────────────────────────────────────────
 def read_brokers(path):
-    """Read Brokers sheet. R11/S11/T11 (row 10, cols 17/18/19) = total Calls/Connections/Leads."""
+    """Read Brokers sheet. Look for a 'Total' or 'TOTAL' row in column A or B,
+    then read the Calls/Connections/Leads from cols R/S/T (17/18/19) of that row.
+    Falls back to row 10 (original hardcoded position) if no totals row is found."""
     try:
         df = pd.read_excel(path, sheet_name='Brokers', header=None)
-        calls       = int(safe_num(df.iloc[10, 17]))
-        connections = int(safe_num(df.iloc[10, 18]))
-        leads       = int(safe_num(df.iloc[10, 19]))
+        # Try to find the totals row by searching col A for 'Total'/'TOTAL'
+        total_row = None
+        for i in range(len(df)):
+            cell = str(df.iloc[i, 0]).strip().lower()
+            if cell in ('total', 'totals', 'grand total'):
+                total_row = i
+                break
+        # Also search col B in case totals label is there
+        if total_row is None:
+            for i in range(len(df)):
+                cell = str(df.iloc[i, 1]).strip().lower() if df.shape[1] > 1 else ''
+                if cell in ('total', 'totals', 'grand total'):
+                    total_row = i
+                    break
+        if total_row is None:
+            total_row = 10  # original hardcoded fallback (row 11 in Excel)
+        print(f'    Brokers totals row: {total_row + 1} (Excel row {total_row + 1})')
+        calls       = int(safe_num(df.iloc[total_row, 17]))
+        connections = int(safe_num(df.iloc[total_row, 18]))
+        leads       = int(safe_num(df.iloc[total_row, 19]))
         return calls, connections, leads
-    except Exception:
+    except Exception as e:
+        print(f'    ⚠ Brokers read error: {e}')
         return 0, 0, 0
 
 # ── Lead Pipeline ─────────────────────────────────────────────────────────────
@@ -634,30 +675,15 @@ def build_data(month_data, bc, lo, cp, broker_calls, broker_connections, broker_
 def push_gist(data, cfg):
     h = {'Authorization':f'token {cfg["token"]}','Accept':'application/vnd.github.v3+json'}
 
-    # ── Staleness guard ────────────────────────────────────────────────────────
-    # Compare this file's SharePoint timestamp against the one stored in the
-    # current Gist. If we're about to push data from an OLDER file, skip the
-    # update so the Gist (and TV) always hold the most recent data seen.
-    new_ts = data.get('_sp_modified', '')
-    if new_ts and new_ts != 'unknown':
-        try:
-            r_cur = requests.get(f'https://api.github.com/gists/{cfg["gist_id"]}',
-                                 headers=h, timeout=30)
-            if r_cur.status_code == 200:
-                cur_file = r_cur.json().get('files', {}).get('dashboard_data.json', {})
-                cur_content = cur_file.get('content', '')
-                if cur_content:
-                    cur_data = json.loads(cur_content)
-                    cur_ts = cur_data.get('_sp_modified', '')
-                    if cur_ts and cur_ts != 'unknown' and new_ts < cur_ts:
-                        print(f'  ⚠ Stale SharePoint file detected!')
-                        print(f'    Current Gist was from: {cur_ts}')
-                        print(f'    This file is from:     {new_ts}')
-                        print(f'    Skipping update — TV keeps the current (newer) data.')
-                        return
-                    print(f'  ✓ Freshness check passed ({new_ts} >= {cur_ts or "none"})')
-        except Exception as e:
-            print(f'  ⚠ Staleness check failed ({e}) — proceeding with update')
+    # NOTE: The staleness guard has been REMOVED.
+    # It was designed to block pushes from old CDN-cached file versions, but
+    # we now use the authenticated /content endpoint which bypasses the CDN
+    # entirely. The staleness guard was causing legitimate updates to be silently
+    # dropped when the Gist held a timestamp that appeared newer than what the
+    # current run fetched (e.g. due to different path finding different metadata).
+    # Every run now always pushes fresh data read directly from SharePoint.
+    new_ts = data.get('_sp_modified', 'unknown')
+    print(f'  ℹ SharePoint file timestamp: {new_ts}')
 
     r = requests.patch(f'https://api.github.com/gists/{cfg["gist_id"]}', headers=h,
         json={'files':{'dashboard_data.json':{'content':json.dumps(data,indent=2)}}},timeout=30)
