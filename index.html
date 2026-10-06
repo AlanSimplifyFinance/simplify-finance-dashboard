@@ -610,11 +610,5 @@ go();
 setInterval(go,300000);
 setInterval(rotate,60000);
 
-// Hard-reload every 10 minutes so the TV always runs the latest HTML from GitHub Pages.
-// A soft reload can serve a browser-cached old copy — we force a brand-new page load
-// by changing the URL with a timestamp query param (browser treats it as a different URL).
-setInterval(function(){
-  var base=window.location.href.split('?')[0];
-  window.location.replace(base+'?r='+Date.now());
-},600000);
+
 </script></body></html>
