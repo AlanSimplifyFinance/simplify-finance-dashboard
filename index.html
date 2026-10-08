@@ -564,12 +564,10 @@ function go(){
     .then(function(r){
       if(r.status===403||r.status===429){console.warn('GitHub API rate limited — will retry next interval');return null;}
       if(!r.ok){console.warn('Gist fetch error: '+r.status);return null;}
-            return r.json();
+      return r.json();
     })
     .then(function(g){
       if(!g)return;
-      if(g.updated_at && g.updated_at===lastGistUpdate)return;
-      lastGistUpdate=g.updated_at||'';
       var f=g.files&&g.files['dashboard_data.json'];
       if(!f){console.warn('dashboard_data.json not found in gist');return;}
       var content=f.content;
