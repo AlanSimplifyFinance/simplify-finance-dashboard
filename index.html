@@ -609,10 +609,3 @@ go();
 // 60-second polling hits that ceiling. Data only changes every 15 min anyway.
 setInterval(go,300000);
 setInterval(rotate,60000);
-
-// Hard-reload every 10 minutes to pick up fresh HTML from GitHub Pages
-setInterval(function(){
-  var base=window.location.href.split('?')[0];
-  window.location.replace(base+'?r='+Date.now());
-},600000);
-</script></body></html>
