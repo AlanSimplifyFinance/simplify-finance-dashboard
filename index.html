@@ -591,30 +591,23 @@ window.addEventListener('resize',function(){
   else drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');
 });
 
-// Fullscreen — click, Enter, Space, F, or F11 on TV remote
-function toggleFS(){
-  if(!document.fullscreenElement){
-    (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement);
-  }else{
-    (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
-  }
+function goFS(){
+  var el=document.documentElement;
+  var req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+  if(!req)return;
+  try{req.call(el);}catch(e){}
 }
-document.addEventListener('click',toggleFS);
+window.addEventListener('load',function(){setTimeout(goFS,500);});
+document.addEventListener('click',goFS);
 document.addEventListener('keydown',function(e){
-  if(['F11','f','F','Enter',' '].indexOf(e.key)>-1){toggleFS();e.preventDefault();}
+  if(['F11','f','F','Enter',' '].indexOf(e.key)>-1){goFS();e.preventDefault();}
 });
+setInterval(function(){
+  var active=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  if(!active)goFS();
+},2000);
 
 go();
-// Data refreshes every 5 min — GitHub API unauthenticated limit is 60 req/hr;
-// 60-second polling hits that ceiling. Data only changes every 15 min anyway.
 setInterval(go,300000);
 setInterval(rotate,60000);
-
-// Hard-reload every 10 minutes so the TV always runs the latest HTML from GitHub Pages.
-// A soft reload can serve a browser-cached old copy — we force a brand-new page load
-// by changing the URL with a timestamp query param (browser treats it as a different URL).
-setInterval(function(){
-  var base=window.location.href.split('?')[0];
-  window.location.replace(base+'?r='+Date.now());
-},600000);
 </script></body></html>
