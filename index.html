@@ -596,7 +596,10 @@ var inFS=false;
 function goFS(){
   var el=document.documentElement;
   var req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
-  if(req)req.call(el).then(function(){inFS=true;}).catch(function(){});
+  if(!req)return;
+  var p=req.call(el);
+  if(p&&p.then)p.then(function(){inFS=true;}).catch(function(){});
+  else inFS=true;
 }
 function onFSChange(){
   var active=!!(document.fullscreenElement||document.webkitFullscreenElement);
