@@ -591,18 +591,25 @@ window.addEventListener('resize',function(){
   else drawDonut('donut-canvas-book',D.lender_mix_book,'Loan Book');
 });
 
-// Fullscreen — click, Enter, Space, F, or F11 on TV remote
-function toggleFS(){
-  if(!document.fullscreenElement){
-    (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement);
-  }else{
-    (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
-  }
+// Fullscreen — auto-enter on load, re-enter if exited
+var inFS=false;
+function goFS(){
+  var el=document.documentElement;
+  var req=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+  if(req)req.call(el).then(function(){inFS=true;}).catch(function(){});
 }
-document.addEventListener('click',toggleFS);
+function onFSChange(){
+  var active=!!(document.fullscreenElement||document.webkitFullscreenElement);
+  if(active)inFS=true;
+  if(!active&&inFS)setTimeout(goFS,800);
+}
+document.addEventListener('fullscreenchange',onFSChange);
+document.addEventListener('webkitfullscreenchange',onFSChange);
+document.addEventListener('click',goFS);
 document.addEventListener('keydown',function(e){
-  if(['F11','f','F','Enter',' '].indexOf(e.key)>-1){toggleFS();e.preventDefault();}
+  if(['F11','f','F','Enter',' '].indexOf(e.key)>-1){goFS();e.preventDefault();}
 });
+window.addEventListener('load',function(){setTimeout(goFS,500);});
 
 go();
 // Data refreshes every 5 min — GitHub API unauthenticated limit is 60 req/hr;
